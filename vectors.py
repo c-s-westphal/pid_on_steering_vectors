@@ -188,8 +188,12 @@ class VectorComputer:
             combined = (a + b) / 2
             method_name = "mean"
         elif method == "max":
-            combined = torch.maximum(a, b)
-            method_name = "elementwise_max"
+            # Max by absolute value, preserving the sign of the larger magnitude element
+            abs_a = torch.abs(a)
+            abs_b = torch.abs(b)
+            # Where |a| > |b|, take a, otherwise take b
+            combined = torch.where(abs_a > abs_b, a, b)
+            method_name = "elementwise_max_abs"
         elif method == "rms_signed":
             combined = compute_rms_signed(a, b)
             method_name = "rms_signed"
