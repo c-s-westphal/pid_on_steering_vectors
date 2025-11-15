@@ -120,63 +120,84 @@ class ActivationExtractor:
         activations = self.extract_activations(prompts, layer_idx, position)
         return activations.mean(dim=0)
 
-    def compute_null_vector(self, layer_idx: int) -> torch.Tensor:
+    def compute_null_vector(self, layer_idx: int, method: str = "zeros") -> torch.Tensor:
         """
-        Compute null vector by averaging all token embeddings and passing through model.
+        Compute null vector using specified method.
 
         Args:
             layer_idx: Layer index to extract null vector from
+            method: Method to use ("zeros", "random_sample", or "avg_embedding")
 
         Returns:
             Null vector of shape (hidden_size,)
         """
-        logger.info(f"Computing null vector at layer {layer_idx}")
+        logger.info(f"Computing null vector at layer {layer_idx} using method: {method}")
 
-        # Get all token embeddings
-        embedding_layer = self.model_handler.model.model.embed_tokens
-        vocab_size = self.model_handler.tokenizer.vocab_size
+        if method == "zeros":
+            # Simple zero vector - no null vector subtraction
+            null_vector = torch.zeros(self.model_handler.hidden_size)
+            logger.info("Using zero null vector (no subtraction)")
 
-        # Average all token embeddings
-        # embedding_layer.weight shape: (vocab_size, hidden_size)
-        avg_embedding = embedding_layer.weight[:vocab_size].mean(dim=0)  # (hidden_size,)
+        elif method == "random_sample":
+            # Average activations from random/diverse prompts
+            diverse_prompts = [
+                "The",
+                "A",
+                "In",
+                "This",
+                "It",
+                "An",
+                "On",
+                "At",
+                "To",
+                "For"
+            ]
+            logger.info(f"Computing null from {len(diverse_prompts)} diverse prompts")
+            null_vector = self.extract_mean_activation(
+                prompts=diverse_prompts,
+                layer_idx=layer_idx,
+                position="last"
+            )
 
-        # Create a dummy input with this average embedding
-        # We need to pass it through the model up to layer_idx
-        # We'll do this by creating a single-token input and replacing its embedding
+        elif method == "avg_embedding":
+            # Original method - average token embeddings through model
+            # Get all token embeddings
+            embedding_layer = self.model_handler.model.model.embed_tokens
+            vocab_size = self.model_handler.tokenizer.vocab_size
 
-        # Create a dummy token (just use token id 0)
-        dummy_input_ids = torch.tensor([[0]], device=self.model_handler.device)
+            # Average all token embeddings
+            avg_embedding = embedding_layer.weight[:vocab_size].mean(dim=0)
 
-        # Register hook to capture activation at target layer
-        hook_name = "null_vector"
-        self.model_handler.clear_hooks()
-        self.model_handler.clear_activations()
-        self.model_handler.register_activation_hook(layer_idx, hook_name)
+            # Create a dummy input with this average embedding
+            dummy_input_ids = torch.tensor([[0]], device=self.model_handler.device)
 
-        # We need to forward pass with the average embedding
-        # We'll use a hook to replace the embedding
-        def replace_embedding_hook(module, input, output):
-            # Replace the embedding with our average
-            return avg_embedding.unsqueeze(0).unsqueeze(0)  # (1, 1, hidden_size)
-
-        embedding_hook = embedding_layer.register_forward_hook(replace_embedding_hook)
-
-        try:
-            with torch.no_grad():
-                _ = self.model_handler.model(dummy_input_ids)
-
-            # Get the activation at the target layer
-            activation = self.model_handler.get_activation(hook_name)
-
-            if activation is None:
-                raise RuntimeError("Failed to extract null vector activation")
-
-            # activation shape: (1, 1, hidden_size)
-            null_vector = activation[0, 0, :].cpu()
-
-        finally:
-            embedding_hook.remove()
+            # Register hook to capture activation at target layer
+            hook_name = "null_vector"
             self.model_handler.clear_hooks()
+            self.model_handler.clear_activations()
+            self.model_handler.register_activation_hook(layer_idx, hook_name)
 
-        logger.info("Null vector computed successfully")
+            # Forward pass with the average embedding
+            def replace_embedding_hook(module, input, output):
+                return avg_embedding.unsqueeze(0).unsqueeze(0)
+
+            embedding_hook = embedding_layer.register_forward_hook(replace_embedding_hook)
+
+            try:
+                with torch.no_grad():
+                    _ = self.model_handler.model(dummy_input_ids)
+
+                activation = self.model_handler.get_activation(hook_name)
+                if activation is None:
+                    raise RuntimeError("Failed to extract null vector activation")
+
+                null_vector = activation[0, 0, :].cpu()
+
+            finally:
+                embedding_hook.remove()
+                self.model_handler.clear_hooks()
+        else:
+            raise ValueError(f"Unknown null vector method: {method}")
+
+        logger.info(f"Null vector computed successfully (norm: {torch.norm(null_vector).item():.4f})")
         return null_vector

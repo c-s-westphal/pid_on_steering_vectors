@@ -83,9 +83,12 @@ def main():
     logger.info("STEP 3: Computing null vector")
     logger.info("=" * 80)
 
-    null_vector = extractor.compute_null_vector(target_layer)
+    # Use "zeros" method - no subtraction, just raw activations
+    # This avoids the null vector dominating the steering vector
+    null_vector = extractor.compute_null_vector(target_layer, method="zeros")
     logger.info(f"Null vector shape: {null_vector.shape}")
     logger.info(f"Null vector norm: {torch.norm(null_vector).item():.4f}")
+    logger.info("Note: Using zeros method (raw activations, no null subtraction)")
 
     # ============================================================================
     # 4. Extract activations for concepts
@@ -232,7 +235,7 @@ def main():
         comparison = generator.compare_generations(
             prompt=prompt,
             steering_vectors=[dogs_vector, bridge_vector, mean_combined],
-            scales=[2.0, 2.0, 2.0],
+            scales=[1.5, 1.5, 1.5],  # Subtle steering to retain model capability
             max_new_tokens=30
         )
 
@@ -274,7 +277,7 @@ def main():
         null_diff_gen = generator.generate(
             prompt=prompt,
             steering_vector=dogs_vector,
-            scale=2.0,
+            scale=1.5,
             max_new_tokens=25,
             temperature=0.7
         )
@@ -283,7 +286,7 @@ def main():
         trad_diff_gen = generator.generate(
             prompt=prompt,
             steering_vector=traditional_diff,
-            scale=2.0,
+            scale=1.5,
             max_new_tokens=25,
             temperature=0.7
         )
@@ -394,7 +397,7 @@ def main():
     dogs_quality = evaluator.evaluate_generation_quality(
         prompts=eval_prompts,
         steering_vector=dogs_vector,
-        scale=2.0,
+        scale=1.5,
         max_new_tokens=50
     )
 
@@ -507,77 +510,77 @@ def main():
     logger.info(f"  {baseline_example['text']}\n")
 
     # Dogs vector
-    logger.info("Dogs steering (null-diff, scale=2.0):")
+    logger.info("Dogs steering (null-diff, scale=1.5):")
     dogs_example = generator.generate(
         prompt=example_prompt,
         steering_vector=dogs_vector,
-        scale=2.0,
+        scale=1.5,
         max_new_tokens=60,
         temperature=0.7
     )
     logger.info(f"  {dogs_example['text']}\n")
 
     # Bridge vector
-    logger.info("Bridge steering (null-diff, scale=2.0):")
+    logger.info("Bridge steering (null-diff, scale=1.5):")
     bridge_example = generator.generate(
         prompt=example_prompt,
         steering_vector=bridge_vector,
-        scale=2.0,
+        scale=1.5,
         max_new_tokens=60,
         temperature=0.7
     )
     logger.info(f"  {bridge_example['text']}\n")
 
     # Mean combination
-    logger.info("Mean combination (dogs + bridge, scale=2.0):")
+    logger.info("Mean combination (dogs + bridge, scale=1.5):")
     mean_example = generator.generate(
         prompt=example_prompt,
         steering_vector=mean_combined,
-        scale=2.0,
+        scale=1.5,
         max_new_tokens=60,
         temperature=0.7
     )
     logger.info(f"  {mean_example['text']}\n")
 
     # Max combination
-    logger.info("Max combination (elementwise_max, scale=2.0):")
+    logger.info("Max combination (elementwise_max, scale=1.5):")
     max_example = generator.generate(
         prompt=example_prompt,
         steering_vector=max_combined,
-        scale=2.0,
+        scale=1.5,
         max_new_tokens=60,
         temperature=0.7
     )
     logger.info(f"  {max_example['text']}\n")
 
     # RMS-signed combination
-    logger.info("RMS-signed combination (scale=2.0):")
+    logger.info("RMS-signed combination (scale=1.5):")
     rms_example = generator.generate(
         prompt=example_prompt,
         steering_vector=rms_combined,
-        scale=2.0,
+        scale=1.5,
         max_new_tokens=60,
         temperature=0.7
     )
     logger.info(f"  {rms_example['text']}\n")
 
     # Diff combination
-    logger.info("Diff combination (dogs - bridge, scale=2.0):")
+    logger.info("Diff combination (dogs - bridge, scale=1.5):")
     diff_example = generator.generate(
         prompt=example_prompt,
         steering_vector=diff_combined,
-        scale=2.0,
+        scale=1.5,
         max_new_tokens=60,
         temperature=0.7
     )
     logger.info(f"  {diff_example['text']}\n")
 
     # Traditional diff
-    logger.info("Traditional contrastive (dogs vs bridge, scale=2.0):")
+    logger.info("Traditional contrastive (dogs vs bridge, scale=1.5):")
     trad_example = generator.generate(
         prompt=example_prompt,
         steering_vector=traditional_diff,
-        scale=2.0,
+        scale=1.5,
         max_new_tokens=60,
         temperature=0.7
     )
