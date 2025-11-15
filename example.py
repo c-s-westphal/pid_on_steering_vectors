@@ -197,6 +197,24 @@ def main():
     )
     logger.info(f"Diff combined: {diff_combined}")
 
+    # Min combination
+    min_combined = vector_computer.combine_vectors(
+        vector_a=dogs_vector,
+        vector_b=bridge_vector,
+        method="min",
+        concept="dogs + bridge (min)"
+    )
+    logger.info(f"Min combined: {min_combined}")
+
+    # Abs diff combination
+    abs_diff_combined = vector_computer.combine_vectors(
+        vector_a=dogs_vector,
+        vector_b=bridge_vector,
+        method="abs_diff",
+        concept="abs(dogs) - abs(bridge)"
+    )
+    logger.info(f"Abs diff combined: {abs_diff_combined}")
+
     # ============================================================================
     # 7. Save steering vectors
     # ============================================================================
@@ -213,6 +231,8 @@ def main():
     max_combined.save(output_dir / "dogs_bridge_max.pt")
     rms_combined.save(output_dir / "dogs_bridge_rms.pt")
     diff_combined.save(output_dir / "dogs_bridge_diff.pt")
+    min_combined.save(output_dir / "dogs_bridge_min.pt")
+    abs_diff_combined.save(output_dir / "dogs_bridge_abs_diff.pt")
     traditional_diff.save(output_dir / "traditional_diff.pt")
 
     logger.info(f"Saved all steering vectors to {output_dir}")
@@ -260,8 +280,10 @@ def main():
         ("Bridge (null-diff)", bridge_vector),
         ("Mean combination", mean_combined),
         ("Max combination", max_combined),
+        ("Min combination", min_combined),
         ("RMS-signed combination", rms_combined),
         ("Diff combination", diff_combined),
+        ("Abs-diff combination", abs_diff_combined),
         ("Traditional contrastive", traditional_diff),
     ]
 
@@ -550,9 +572,11 @@ def main():
     logger.info(f"2. Bridge (null-diff):        norm = {torch.norm(bridge_vector.vector).item():.4f}")
     logger.info(f"3. Mean combination:          norm = {torch.norm(mean_combined.vector).item():.4f}")
     logger.info(f"4. Max combination:           norm = {torch.norm(max_combined.vector).item():.4f}")
-    logger.info(f"5. RMS-signed combination:    norm = {torch.norm(rms_combined.vector).item():.4f}")
-    logger.info(f"6. Diff combination:          norm = {torch.norm(diff_combined.vector).item():.4f}")
-    logger.info(f"7. Traditional contrastive:   norm = {torch.norm(traditional_diff.vector).item():.4f}")
+    logger.info(f"5. Min combination:           norm = {torch.norm(min_combined.vector).item():.4f}")
+    logger.info(f"6. RMS-signed combination:    norm = {torch.norm(rms_combined.vector).item():.4f}")
+    logger.info(f"7. Diff combination:          norm = {torch.norm(diff_combined.vector).item():.4f}")
+    logger.info(f"8. Abs-diff combination:      norm = {torch.norm(abs_diff_combined.vector).item():.4f}")
+    logger.info(f"9. Traditional contrastive:   norm = {torch.norm(traditional_diff.vector).item():.4f}")
 
     logger.info("\n" + "=" * 60)
     logger.info("VALIDATION RESULTS")
@@ -645,6 +669,17 @@ def main():
     )
     logger.info(f"  {rms_example['text']}\n")
 
+    # Min combination
+    logger.info("Min combination (elementwise_min, scale=1.5):")
+    min_example = generator.generate(
+        prompt=example_prompt,
+        steering_vector=min_combined,
+        scale=1.5,
+        max_new_tokens=60,
+        temperature=0.7
+    )
+    logger.info(f"  {min_example['text']}\n")
+
     # Diff combination
     logger.info("Diff combination (dogs - bridge, scale=1.5):")
     diff_example = generator.generate(
@@ -655,6 +690,17 @@ def main():
         temperature=0.7
     )
     logger.info(f"  {diff_example['text']}\n")
+
+    # Abs diff combination
+    logger.info("Abs-diff combination (|dogs| - |bridge|, scale=1.5):")
+    abs_diff_example = generator.generate(
+        prompt=example_prompt,
+        steering_vector=abs_diff_combined,
+        scale=1.5,
+        max_new_tokens=60,
+        temperature=0.7
+    )
+    logger.info(f"  {abs_diff_example['text']}\n")
 
     # Traditional diff
     logger.info("Traditional contrastive (dogs vs bridge, scale=1.5):")

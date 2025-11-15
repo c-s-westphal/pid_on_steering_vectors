@@ -11,7 +11,7 @@ import json
 logger = logging.getLogger(__name__)
 
 
-CombinationMethod = Literal["diff", "mean", "max", "rms_signed"]
+CombinationMethod = Literal["diff", "mean", "max", "min", "rms_signed", "abs_diff"]
 
 
 def compute_rms_signed(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
@@ -163,7 +163,7 @@ class VectorComputer:
         Args:
             vector_a: First steering vector
             vector_b: Second steering vector
-            method: Combination method ("diff", "mean", "max", "rms_signed")
+            method: Combination method ("diff", "mean", "max", "min", "rms_signed", "abs_diff")
             concept: Optional concept description for combined vector
 
         Returns:
@@ -194,9 +194,26 @@ class VectorComputer:
             # Where |a| > |b|, take a, otherwise take b
             combined = torch.where(abs_a > abs_b, a, b)
             method_name = "elementwise_max_abs"
+        elif method == "min":
+            # Min by absolute value, preserving the sign of the smaller magnitude element
+            abs_a = torch.abs(a)
+            abs_b = torch.abs(b)
+            # Where |a| < |b|, take a, otherwise take b
+            combined = torch.where(abs_a < abs_b, a, b)
+            method_name = "elementwise_min_abs"
         elif method == "rms_signed":
             combined = compute_rms_signed(a, b)
             method_name = "rms_signed"
+        elif method == "abs_diff":
+            # Absolute difference: |a| - |b|, preserving sign from larger component
+            abs_a = torch.abs(a)
+            abs_b = torch.abs(b)
+            diff_magnitude = abs_a - abs_b
+            # Preserve sign from whichever had larger absolute value
+            combined = torch.where(abs_a > abs_b,
+                                  torch.sign(a) * diff_magnitude,
+                                  torch.sign(b) * diff_magnitude)
+            method_name = "abs_diff"
         else:
             raise ValueError(f"Unknown combination method: {method}")
 
@@ -246,7 +263,7 @@ class VectorComputer:
         if method == "mean":
             combined = torch.stack([v.vector for v in vectors]).mean(dim=0)
             method_name = "mean"
-        elif method in ["diff", "max", "rms_signed"]:
+        elif method in ["diff", "max", "min", "rms_signed", "abs_diff"]:
             # For binary operations, combine sequentially
             result = vectors[0]
             for v in vectors[1:]:

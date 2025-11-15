@@ -6,9 +6,10 @@ A PyTorch-based library for research on activation-based steering vectors for la
 
 This library implements methods for:
 1. **Null-vector based steering**: Diffing concept activations against an "average embedding space" null vector
-2. **Multiple combination methods**: Mean, max, RMS-signed, and traditional difference
+2. **Multiple combination methods**: Mean, max, min, RMS-signed, abs-diff, and traditional difference
 3. **Comprehensive evaluation**: Probability analysis, concept presence scoring, and LLM-based judging
-4. **Flexible experimentation**: Support for any HuggingFace transformer model
+4. **Multi-model support**: Test across different model architectures (Qwen, Llama, Mistral, Gemma)
+5. **Flexible experimentation**: Support for any HuggingFace transformer model
 
 ## Key Features
 
@@ -20,10 +21,12 @@ Instead of requiring contrastive pairs of datasets, this library allows you to:
 
 ### Vector Combination Methods
 Combine multiple steering vectors using:
-- **Mean**: `(a + b) / 2`
-- **Max**: `elementwise_max(a, b)`
-- **RMS-Signed**: `sign(a+b) · sqrt((a² + b²) / 2)`
-- **Diff**: `a - b` (traditional contrastive method)
+- **Mean**: `(a + b) / 2` - Simple average
+- **Max**: `elementwise_max_abs(a, b)` - Larger magnitude preserving sign
+- **Min**: `elementwise_min_abs(a, b)` - Smaller magnitude preserving sign
+- **RMS-Signed**: `sign(a+b) · sqrt((a² + b²) / 2)` - Root mean square with sign
+- **Diff**: `a - b` - Traditional contrastive difference
+- **Abs-Diff**: `|a| - |b|` - Difference of magnitudes with sign preservation
 
 ### Comprehensive Analysis
 - Token probability shift analysis
@@ -105,10 +108,38 @@ This will:
 - Create "dogs" and "Golden Gate Bridge" concept datasets
 - Compute null vector
 - Extract activations and create steering vectors
-- Test all combination methods (mean, max, RMS-signed, diff)
+- Test all combination methods (mean, max, min, RMS-signed, diff, abs-diff)
+- Test multiple steering scales (0.1 to 2.0)
 - Analyze probability shifts for concept tokens
 - Evaluate generation quality
 - Save all results to `outputs/`
+
+### Multi-Model Testing
+
+Test steering vectors across different model architectures:
+
+```bash
+# Test on Qwen 3B (default)
+python run_multi_model.py --models qwen-3b
+
+# Test on Llama 2 7B
+python run_multi_model.py --models llama-7b
+
+# Test on multiple models
+python run_multi_model.py --models qwen-3b llama-7b mistral-7b
+
+# Test on all available models
+python run_multi_model.py --models all
+
+# List available models
+python run_multi_model.py --list-models
+```
+
+Available models:
+- `qwen-3b`: Qwen 2.5 3B - Small, fast, efficient
+- `llama-7b`: Llama 2 7B - Standard baseline model
+- `mistral-7b`: Mistral 7B - High quality 7B model
+- `gemma-7b`: Gemma 7B - Google's 7B model
 
 ## Library Structure
 
@@ -200,12 +231,16 @@ Investigate how different combination methods affect steering:
 # Test all combination methods
 mean_vec = VectorComputer.combine_vectors(vec_a, vec_b, method="mean")
 max_vec = VectorComputer.combine_vectors(vec_a, vec_b, method="max")
+min_vec = VectorComputer.combine_vectors(vec_a, vec_b, method="min")
 rms_vec = VectorComputer.combine_vectors(vec_a, vec_b, method="rms_signed")
+diff_vec = VectorComputer.combine_vectors(vec_a, vec_b, method="diff")
+abs_diff_vec = VectorComputer.combine_vectors(vec_a, vec_b, method="abs_diff")
 
 # Compare generation quality
-for vec in [mean_vec, max_vec, rms_vec]:
-    result = generator.generate(prompt, steering_vector=vec, scale=2.0)
-    # Analyze results...
+for name, vec in [("mean", mean_vec), ("max", max_vec), ("min", min_vec),
+                  ("rms", rms_vec), ("diff", diff_vec), ("abs_diff", abs_diff_vec)]:
+    result = generator.generate(prompt, steering_vector=vec, scale=1.5)
+    print(f"{name}: {result['text']}")
 ```
 
 ### 3. Probability Analysis
