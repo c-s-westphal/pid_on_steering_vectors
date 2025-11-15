@@ -117,7 +117,8 @@ class ModelHandler:
             steering_vector: The vector to add to activations
             scale: Scaling factor for the steering vector
         """
-        steering_vector = steering_vector.to(self.device)
+        # Convert to model's dtype and device
+        steering_vector = steering_vector.to(device=self.device, dtype=self.torch_dtype)
 
         def steering_hook_fn(module, input, output):
             # Output is typically (hidden_states, ...)
