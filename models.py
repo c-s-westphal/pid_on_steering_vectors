@@ -2,6 +2,10 @@
 Model loading and hook management for activation extraction.
 """
 
+import os
+# Disable hf_transfer to avoid module not found errors
+os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "0"
+
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from typing import Optional, Dict, List
