@@ -244,10 +244,91 @@ def main():
             logger.info(f"{steered['steering_info']['concept']}: {steered['text']}")
 
     # ============================================================================
-    # 9. VALIDATE NULL-VECTOR METHOD: Compare to traditional contrastive method
+    # 9. TEST MULTIPLE SCALES FOR ALL COMBINATION METHODS
     # ============================================================================
     logger.info("=" * 80)
-    logger.info("STEP 9: VALIDATING NULL-VECTOR METHOD")
+    logger.info("STEP 9: Testing multiple scales for all combination methods")
+    logger.info("=" * 80)
+
+    # Test scales
+    test_scales = [0.1, 0.3, 0.5, 0.7, 1.0, 1.5, 2.0]
+    test_prompt_scale = "Write a short paragraph about"
+
+    # All vectors to test
+    all_vectors = [
+        ("Dogs (null-diff)", dogs_vector),
+        ("Bridge (null-diff)", bridge_vector),
+        ("Mean combination", mean_combined),
+        ("Max combination", max_combined),
+        ("RMS-signed combination", rms_combined),
+        ("Diff combination", diff_combined),
+        ("Traditional contrastive", traditional_diff),
+    ]
+
+    logger.info(f"\nTest prompt: '{test_prompt_scale}'")
+    logger.info(f"Testing scales: {test_scales}\n")
+
+    # Generate baseline once
+    logger.info("BASELINE (no steering):")
+    logger.info("-" * 60)
+    baseline_scale = generator.generate(
+        prompt=test_prompt_scale,
+        steering_vector=None,
+        max_new_tokens=40,
+        temperature=0.7
+    )
+    logger.info(f"{baseline_scale['text']}\n")
+
+    # Test each vector at each scale
+    for vec_name, vec in all_vectors:
+        logger.info("=" * 60)
+        logger.info(f"VECTOR: {vec_name}")
+        logger.info(f"Vector norm: {torch.norm(vec.vector).item():.2f}")
+        logger.info("=" * 60)
+
+        for scale in test_scales:
+            result = generator.generate(
+                prompt=test_prompt_scale,
+                steering_vector=vec,
+                scale=scale,
+                max_new_tokens=40,
+                temperature=0.7
+            )
+
+            # Check for garbled output
+            text = result['text']
+            has_control_chars = any(ord(c) < 32 and c not in '\n\t' for c in text)
+
+            if has_control_chars:
+                logger.info(f"\nScale {scale}: ⚠️ GARBLED OUTPUT")
+                logger.info(f"  {text[:80]}...")
+            else:
+                # Count concept mentions
+                dog_words = ['dog', 'dogs', 'puppy', 'puppies', 'canine', 'pet']
+                bridge_words = ['bridge', 'golden', 'gate', 'san francisco']
+                dog_count = sum(text.lower().count(word) for word in dog_words)
+                bridge_count = sum(text.lower().count(word) for word in bridge_words)
+
+                logger.info(f"\nScale {scale}: ✓ Valid (dog:{dog_count}, bridge:{bridge_count})")
+                logger.info(f"  {text[:80]}...")
+
+        logger.info("")  # Blank line between vectors
+
+    logger.info("=" * 80)
+    logger.info("SCALE TESTING SUMMARY")
+    logger.info("=" * 80)
+    logger.info("Review the outputs above to identify:")
+    logger.info("1. Which scales work best for each combination method")
+    logger.info("2. When garbled output starts (scale too high)")
+    logger.info("3. How different methods compare at same scale")
+    logger.info("4. Optimal scale range for your vectors")
+    logger.info("=" * 80 + "\n")
+
+    # ============================================================================
+    # 10. VALIDATE NULL-VECTOR METHOD: Compare to traditional contrastive method
+    # ============================================================================
+    logger.info("=" * 80)
+    logger.info("STEP 10: VALIDATING NULL-VECTOR METHOD")
     logger.info("=" * 80)
     logger.info("\nThis step verifies that null-vector steering actually works")
     logger.info("by comparing it to the traditional contrastive method.\n")
@@ -348,10 +429,10 @@ def main():
         logger.info("   - Check that concept activations are distinct from null")
 
     # ============================================================================
-    # 10. Analyze probability shifts in detail
+    # 11. Analyze probability shifts in detail
     # ============================================================================
     logger.info("=" * 80)
-    logger.info("STEP 10: Analyzing probability shifts for concept tokens (detailed)")
+    logger.info("STEP 11: Analyzing probability shifts for concept tokens (detailed)")
     logger.info("=" * 80)
 
     # Define concept-related tokens to track
@@ -384,10 +465,10 @@ def main():
                               f"{effect['relative_change']*100:+.2f}%)")
 
     # ============================================================================
-    # 11. Evaluate concept presence
+    # 12. Evaluate concept presence
     # ============================================================================
     logger.info("=" * 80)
-    logger.info("STEP 11: Evaluating concept presence in generations")
+    logger.info("STEP 12: Evaluating concept presence in generations")
     logger.info("=" * 80)
 
     # Generate multiple samples
@@ -416,10 +497,10 @@ def main():
                    f"Presence rate: {scoring['steered_avg']['avg_presence_rate']:.4f}")
 
     # ============================================================================
-    # 12. Save evaluation results
+    # 13. Save evaluation results
     # ============================================================================
     logger.info("=" * 80)
-    logger.info("STEP 12: Saving evaluation results")
+    logger.info("STEP 13: Saving evaluation results")
     logger.info("=" * 80)
 
     eval_output_dir = Path("outputs/evaluations")
@@ -443,10 +524,10 @@ def main():
     logger.info(f"Saved evaluation results to {eval_output_dir}")
 
     # ============================================================================
-    # 13. FINAL SUMMARY OF RESULTS
+    # 14. FINAL SUMMARY OF RESULTS
     # ============================================================================
     logger.info("=" * 80)
-    logger.info("FINAL SUMMARY OF RESULTS")
+    logger.info("STEP 14: FINAL SUMMARY OF RESULTS")
     logger.info("=" * 80)
 
     logger.info("\n" + "=" * 60)
