@@ -29,7 +29,7 @@ def main():
     # 1. Load model
     # ============================================================================
     logger.info("\nStep 1: Loading model...")
-    model_handler = ModelHandler(model_name="Qwen/Qwen2.5-3B")
+    model_handler = ModelHandler(model_name="Qwen/Qwen2.5-14B")
     extractor = ActivationExtractor(model_handler)
     generator = SteeredGenerator(model_handler)
     vector_computer = VectorComputer()
