@@ -19,7 +19,7 @@ from extraction import ActivationExtractor
 from vectors import VectorComputer, SteeringVector
 from steering import SteeredGenerator
 from data import DatasetBuilder
-from evaluation import Evaluator
+from evaluation import SteeringEvaluator
 
 logging.basicConfig(
     level=logging.INFO,
@@ -62,7 +62,7 @@ def run_for_model(model_key: str, output_base_dir: Path):
     # Initialize components
     extractor = ActivationExtractor(model_handler)
     generator = SteeredGenerator(model_handler)
-    evaluator = Evaluator(model_handler)
+    evaluator = SteeringEvaluator(model_handler)
     vector_computer = VectorComputer()
 
     # Determine target layer (middle-late range)
