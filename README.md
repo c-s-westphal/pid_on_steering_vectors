@@ -137,9 +137,12 @@ python run_multi_model.py --list-models
 
 Available models:
 - `qwen-3b`: Qwen 2.5 3B - Small, fast, efficient
-- `llama-7b`: Llama 2 7B - Standard baseline model
+- `qwen-7b`: Qwen 2.5 7B - Larger, high quality
+- `llama-3-8b`: Llama 3.2 3B - Newer ungated model
+- `phi-3`: Phi-3 Mini 3.8B - Microsoft's small model
 - `mistral-7b`: Mistral 7B - High quality 7B model
-- `gemma-7b`: Gemma 7B - Google's 7B model
+- `llama-7b`: Llama 2 7B - **GATED** (requires HuggingFace access)
+- `gemma-7b`: Gemma 7B - **GATED** (requires HuggingFace access)
 
 ## Library Structure
 

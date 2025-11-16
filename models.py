@@ -157,4 +157,5 @@ class ModelHandler:
 
     def __del__(self):
         """Cleanup hooks on deletion."""
-        self.clear_hooks()
+        if hasattr(self, 'hooks'):
+            self.clear_hooks()
