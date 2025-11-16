@@ -16,6 +16,11 @@ MODEL_CONFIGS = {
         "torch_dtype": torch.float16,
         "description": "Qwen 2.5 7B - Larger, high quality",
     },
+    "qwen-14b": {
+        "model_name": "Qwen/Qwen2.5-14B",
+        "torch_dtype": torch.float16,
+        "description": "Qwen 2.5 14B - Large, high quality",
+    },
     "llama-7b": {
         "model_name": "meta-llama/Llama-2-7b-hf",
         "torch_dtype": torch.float16,

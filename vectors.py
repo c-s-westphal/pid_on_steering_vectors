@@ -292,3 +292,61 @@ class VectorComputer:
                 'combination_method': method
             }
         )
+
+    @staticmethod
+    def from_linear_probe(
+        probe_weights: torch.Tensor,
+        class_idx: int,
+        layer_idx: int,
+        concept: str
+    ) -> SteeringVector:
+        """
+        Create steering vector from linear probe weights.
+
+        Args:
+            probe_weights: Probe weight matrix of shape (num_classes, hidden_size)
+            class_idx: Which class to extract (0=neither, 1=dog, 2=bridge, 3=both)
+            layer_idx: Layer index
+            concept: Description (e.g., "probe_dog_direction")
+
+        Returns:
+            SteeringVector instance
+        """
+        vector = probe_weights[class_idx, :].clone()
+        return SteeringVector(
+            vector=vector,
+            layer_idx=layer_idx,
+            concept=concept,
+            method=f"linear_probe_class_{class_idx}",
+            metadata={'probe_class': class_idx}
+        )
+
+    @staticmethod
+    def from_probe_difference(
+        probe_weights: torch.Tensor,
+        class_a_idx: int,
+        class_b_idx: int,
+        layer_idx: int,
+        concept: str
+    ) -> SteeringVector:
+        """
+        Create steering vector from difference of probe directions.
+
+        Args:
+            probe_weights: Probe weight matrix of shape (num_classes, hidden_size)
+            class_a_idx: First class index
+            class_b_idx: Second class index
+            layer_idx: Layer index
+            concept: Description (e.g., "dog_vs_bridge_probe")
+
+        Returns:
+            SteeringVector instance
+        """
+        vector = probe_weights[class_a_idx, :] - probe_weights[class_b_idx, :]
+        return SteeringVector(
+            vector=vector,
+            layer_idx=layer_idx,
+            concept=concept,
+            method=f"probe_diff_{class_a_idx}_vs_{class_b_idx}",
+            metadata={'class_a': class_a_idx, 'class_b': class_b_idx}
+        )
