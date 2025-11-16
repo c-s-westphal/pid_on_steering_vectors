@@ -1,0 +1,46 @@
+Model: Qwen/Qwen2.5-7B
+Description: Qwen 2.5 7B - Larger, high quality
+Layers: 28
+Hidden size: 3584
+Target layer: 18
+
+Vector norms:
+  Dogs: 99.7455
+  Bridge: 101.8022
+  mean: 93.1616
+  max: 115.6215
+  min: 83.3338
+  rms_signed: 100.7791
+  diff: 76.8723
+  abs_diff: 55.0264
+  Traditional: 76.8710
+
+Sample generations:
+
+Dogs:
+  Scale 0.3:  the importance of recycling. Recycling is an essential part of our modern society. It is important because it helps to reduce waste and conserve natu...
+  Scale 0.7:  dogs.
+Dogs are loyal, and have been used for many purposes such as service, and for hunting. They are very good at hunting, and can help people in ma...
+  Scale 1.0:  how to. Please.
+ and is and and.
+, and I know that. (and and, is and, dogs, dogs, cats, cats and, dogs. I dogs and.
+.
+...
+  Scale 1.5:  in. and and,...
+,. are not.
+.
+,. and.
+
+. and.. and and....... and. and and and....
+
+Mean:
+  Scale 0.3:  your experience with a local farmer's market. I don't have personal experiences or emotions. however, i can give you an example of a short paragraph ...
+  Scale 0.7:  a cat. A cat is a domesticated mammal. They are known for their curiosity and are usually known to be very affectionate. They are often considered as...
+  Scale 1.0:  the. 20th anniversary of the fire. -
+
+. The 2 is a 3 and is 5. 192. 1. 5. 10...
+  Scale 1.5:  the, and, and..
+ in., is (,. and. ( and...
+ and,, is and, is,.
+
+ in.., is.,....

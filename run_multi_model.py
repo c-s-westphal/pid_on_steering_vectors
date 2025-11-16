@@ -272,7 +272,57 @@ def run_for_model(model_key: str, output_base_dir: Path):
         layer_idx=target_layer, concept="probe_both_vs_neither"
     )
 
-    logger.info("Probe-based steering vectors created:")
+    logger.info("Probe-based steering vectors created (original scale):")
+    logger.info(f"  Dog:             norm = {torch.norm(probe_dog.vector).item():.4f}")
+    logger.info(f"  Bridge:          norm = {torch.norm(probe_bridge.vector).item():.4f}")
+    logger.info(f"  Both:            norm = {torch.norm(probe_both.vector).item():.4f}")
+    logger.info(f"  Dog vs neither:  norm = {torch.norm(probe_dog_vs_neither.vector).item():.4f}")
+
+    # ========================================================================
+    # RESCALE PROBE VECTORS TO MATCH TRADITIONAL VECTOR MAGNITUDES
+    # ========================================================================
+    logger.info("\nRescaling probe vectors to match traditional vector scale...")
+
+    # Calculate average norm of traditional vectors
+    traditional_norms = [
+        torch.norm(dogs_vector.vector).item(),
+        torch.norm(bridge_vector.vector).item(),
+        torch.norm(combinations["mean"].vector).item(),
+        torch.norm(combinations["max"].vector).item(),
+        torch.norm(combinations["min"].vector).item(),
+        torch.norm(combinations["rms_signed"].vector).item(),
+        torch.norm(combinations["diff"].vector).item(),
+        torch.norm(combinations["abs_diff"].vector).item(),
+        torch.norm(traditional_diff.vector).item(),
+    ]
+    avg_traditional_norm = sum(traditional_norms) / len(traditional_norms)
+
+    # Calculate average norm of probe vectors
+    probe_norms = [
+        torch.norm(probe_dog.vector).item(),
+        torch.norm(probe_bridge.vector).item(),
+        torch.norm(probe_both.vector).item(),
+        torch.norm(probe_dog_vs_neither.vector).item(),
+        torch.norm(probe_bridge_vs_neither.vector).item(),
+        torch.norm(probe_both_vs_neither.vector).item(),
+    ]
+    avg_probe_norm = sum(probe_norms) / len(probe_norms)
+
+    # Calculate rescaling factor
+    rescale_factor = avg_traditional_norm / avg_probe_norm
+    logger.info(f"  Average traditional norm: {avg_traditional_norm:.2f}")
+    logger.info(f"  Average probe norm: {avg_probe_norm:.2f}")
+    logger.info(f"  Rescaling factor: {rescale_factor:.2f}x")
+
+    # Rescale probe vectors
+    probe_dog.vector = probe_dog.vector * rescale_factor
+    probe_bridge.vector = probe_bridge.vector * rescale_factor
+    probe_both.vector = probe_both.vector * rescale_factor
+    probe_dog_vs_neither.vector = probe_dog_vs_neither.vector * rescale_factor
+    probe_bridge_vs_neither.vector = probe_bridge_vs_neither.vector * rescale_factor
+    probe_both_vs_neither.vector = probe_both_vs_neither.vector * rescale_factor
+
+    logger.info("\nProbe-based steering vectors (after rescaling):")
     logger.info(f"  Dog:             norm = {torch.norm(probe_dog.vector).item():.4f}")
     logger.info(f"  Bridge:          norm = {torch.norm(probe_bridge.vector).item():.4f}")
     logger.info(f"  Both:            norm = {torch.norm(probe_both.vector).item():.4f}")
@@ -494,7 +544,7 @@ def run_for_model(model_key: str, output_base_dir: Path):
         f.write(f"8. Abs-diff combination:      norm = {torch.norm(combinations['abs_diff'].vector).item():.4f}\n")
         f.write(f"9. Traditional contrastive:   norm = {torch.norm(traditional_diff.vector).item():.4f}\n\n")
 
-        f.write("MLP PROBE-BASED VECTORS:\n")
+        f.write("MLP PROBE-BASED VECTORS (rescaled to match traditional norms):\n")
         f.write(f"10. Probe Dog:                 norm = {torch.norm(probe_dog.vector).item():.4f}\n")
         f.write(f"11. Probe Bridge:              norm = {torch.norm(probe_bridge.vector).item():.4f}\n")
         f.write(f"12. Probe Both:                norm = {torch.norm(probe_both.vector).item():.4f}\n")
@@ -503,7 +553,11 @@ def run_for_model(model_key: str, output_base_dir: Path):
         f.write(f"15. Probe Both vs Neither:     norm = {torch.norm(probe_both_vs_neither.vector).item():.4f}\n")
         f.write(f"\nProbe Training Performance:\n")
         f.write(f"  Train accuracy: {probe_history['train_acc'][-1]:.2f}%\n")
-        f.write(f"  Val accuracy:   {probe_history['val_acc'][-1]:.2f}%\n\n")
+        f.write(f"  Val accuracy:   {probe_history['val_acc'][-1]:.2f}%\n")
+        f.write(f"\nProbe Rescaling:\n")
+        f.write(f"  Original avg norm: {avg_probe_norm:.2f}\n")
+        f.write(f"  Target avg norm:   {avg_traditional_norm:.2f}\n")
+        f.write(f"  Rescale factor:    {rescale_factor:.2f}x\n\n")
 
         f.write("=" * 80 + "\n")
         f.write("SCALE TESTING RESULTS (all vectors × all scales)\n")

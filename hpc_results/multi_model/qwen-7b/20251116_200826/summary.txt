@@ -1,0 +1,377 @@
+================================================================================
+STEERING VECTORS EXPERIMENT RESULTS
+================================================================================
+
+Model: Qwen/Qwen2.5-7B
+Description: Qwen 2.5 7B - Larger, high quality
+Layers: 28
+Hidden size: 3584
+Target layer: 18
+
+================================================================================
+STEERING VECTORS CREATED
+================================================================================
+1. Dogs (null-diff):          norm = 99.7455
+2. Bridge (null-diff):        norm = 101.8022
+3. Mean combination:          norm = 93.1616
+4. Max combination:           norm = 115.6215
+5. Min combination:           norm = 83.3338
+6. RMS-signed combination:    norm = 100.7791
+7. Diff combination:          norm = 76.8723
+8. Abs-diff combination:      norm = 55.0264
+9. Traditional contrastive:   norm = 76.8710
+
+MLP PROBE-BASED VECTORS:
+10. Probe Dog:                 norm = 0.6082
+11. Probe Bridge:              norm = 0.6120
+12. Probe Both:                norm = 0.6204
+13. Probe Dog vs Neither:      norm = 0.8737
+14. Probe Bridge vs Neither:   norm = 0.8925
+15. Probe Both vs Neither:     norm = 0.8898
+
+Probe Training Performance:
+  Train accuracy: 100.00%
+  Val accuracy:   100.00%
+
+================================================================================
+SCALE TESTING RESULTS (all vectors × all scales)
+================================================================================
+
+Baseline:  the importance of trees in the environment.
+Trees play a crucial role in maintaining a healthy envi...
+
+
+Dogs vector:
+------------------------------------------------------------
+Scale 0.1 [NEUTRAL]   :  your favorite food.
+
+My favorite food is pizza. It is a versatile and delicious dish that comes in many different flavo...
+Scale 0.3 [NEUTRAL]   :  how you plan to implement a new skill or hobby. I don't have a skill or hobby. however, i can suggest some tips for imp...
+Scale 0.5 [CONCEPT]   :  a dog's personality.
+A dog is a loyal, intelligent and playful companion. They are known for their loyalty and devotion...
+Scale 0.7 [CONCEPT]   :  the importance of dogs as pets.
+ Dogs are the best friend and have been our companions for thousands of years. Dogs are...
+Scale 1.0 [CONCEPT]   :  a, and. and and dogs, in 10, in and in and and. and, and and. I love dogs, and,. dogs and. and, dogs. and dogs. and. an...
+Scale 1.5 [CONCEPT]   : , and in or for. and in in. and and are,, and and, and., and.., dogs,.. in,. and and,. in and and. and and and.,, dogs i...
+Scale 2.0 [CONCEPT]   :  and. in.. and and and.. and.. that in and, in and and. dogs,, and dogs and, and and and., and and and and and. dogs and...
+
+Bridge vector:
+------------------------------------------------------------
+Scale 0.1 [NEUTRAL]   :  the following topic. The topic is the benefits of a healthy diet.
+A healthy diet is essential for overall well-being an...
+Scale 0.3 [NEUTRAL]   :  a local park that you've visited and enjoyed, describing its scenery, facilities, and any notable features that make it...
+Scale 0.5 [CONCEPT]   :  the Golden Gate Bridge. The Golden Gate Bridge, located in San Francisco, is an iconic suspension bridge that spans the...
+Scale 0.7 [CONCEPT]   :  a famous bridge. The Golden Gate Bridge, located in San Francisco, California, is a suspension bridge that spans the Go...
+Scale 1.0 [CONCEPT]   :  in, with, and.
+
+. The is the most popular bridge, and is one of the oldest.. in, with, and.
+.. Bridge, is a famous in, ...
+Scale 1.5 [CONCEPT]   :  that
+ Bridge,,,,,. is
+.. in.
+. in.,
+,. and.,, Bridge. is
+
+
+. is,,
+,..,
+.,,...
+ and...
+Scale 2.0 [CONCEPT]   : : and, -,,..,
+ Bridge.,.
+... and, Bridge,,,,
+ and,,
+,,
+
+, -,,
+ Bridge,.
+ and Bridge.,.,
+
+....
+
+Mean vector:
+------------------------------------------------------------
+Scale 0.1 [NEUTRAL]   :  the benefits of reading books.
+Reading books offers numerous benefits, including expanding knowledge, improving vocabul...
+Scale 0.3 [NEUTRAL]   :  your experience with the new bike. The new bike is a joy to ride. The wheels are lightweight and the pedals are easy to...
+Scale 0.5 [NEUTRAL]   :  a person's experience with their first visit to a museum. Include a description of the location, and describe how the m...
+Scale 0.7 [CONCEPT]   :  the relationship between cats and dogs, and then write a sentence that describes a dog's personality and a cat's person...
+Scale 1.0 [NEUTRAL]   : . The.
+. . in. The. and. 
+ in. and. ,. 
+ and. and. ,. 
+ and..
+ and. and
+. and. and. ,. and. and.
+. and..
+,...
+Scale 1.5 [NEUTRAL]   : , and, in, and..., is, and,. (.. and.
+.....,.
+..
+., and. and. (,...,,..,.
+ and.,,...
+Scale 2.0 [NEUTRAL]   :  and in and and.,,...
+.,,,. and.
+,, and,
+
+, and,,
+....
+
+.,., and...
+ and
+,, and and
+ and...
+
+Max vector:
+------------------------------------------------------------
+Scale 0.1 [NEUTRAL]   :  the effects of global warming on the environment.
+Global warming is a significant environmental concern that has far-re...
+Scale 0.3 [NEUTRAL]   :  the American Revolutionary War
+The American Revolutionary War, which lasted from 1775 to 1783, was a conflict that took...
+Scale 0.5 [CONCEPT]   :  a family pet and write a story about it. 1. The family pet is a cat named Max. It is a golden retriever, and he is know...
+Scale 0.7 [NEUTRAL]   :  the topic.
+. A:.
+. and. A....
+Scale 1.0 [CONCEPT]   : . What's in and in is, the bridge in..
+. The, I, of,. in and. I,
+..
+. dogs,.
+. and. I. and. dog.
+, and. and,.
+, and...
+Scale 1.5 [NEUTRAL]   : .
+..
+.
+.
+..
+.. and
+.,..
+ and.
+,..
+, and,
+ and.
+., and,.
+ and,.
+.... and.
+,....
+Scale 2.0 [NEUTRAL]   : ,..
+,
+,.
+.,. and,....
+.. and..,
+.. and.,..... and.. ( and, and,..,. and (,...
+
+Min vector:
+------------------------------------------------------------
+Scale 0.1 [NEUTRAL]   :  the importance of trees.
+Trees are vital for the environment and our daily lives. They absorb carbon dioxide and releas...
+Scale 0.3 [NEUTRAL]   :  the life of Albert Einstein, a famous physicist, in the style of Ernest Hemingway. Albert Einstein was born in Ulm, Ger...
+Scale 0.5 [CONCEPT]   :  the role of the dog in the story. The dog is a central character in the story, and it is a key part of the plot. The do...
+Scale 0.7 [NEUTRAL]   :  the following topic: The role of technology in modern medicine
+
+ Technology has become an essential part of modern medi...
+Scale 1.0 [CONCEPT]   :  the. The. I would be happy to write a short paragraph about a very important animal. The. I am a robot. I am an animal....
+Scale 1.5 [NEUTRAL]   :  the, and, and.
+
+ is and is a. the are  is and is  is and is., and and is
+
+, and, are, are and, and,,
+
+, and is,, and an...
+Scale 2.0 [NEUTRAL]   :  a, and the is. ( and is
+
+.
+ and, is, and. and, and, in, in, and, is, and., are,,..
+, is, and.. in,. and,, is...
+
+RMS vector:
+------------------------------------------------------------
+Scale 0.1 [NEUTRAL]   :  the benefits of recycling. Recycling has many benefits for both the environment and the economy. By recycling, we reduc...
+Scale 0.3 [NEUTRAL]   :  the benefits of taking a break from social media.
+Taking a break from social media can be beneficial for many reasons. ...
+Scale 0.5 [NEUTRAL]   :  the most important person in your life. The most important person in my life is my grandfather. He is a loving, wise, a...
+Scale 0.7 [CONCEPT]   :  the history of the Golden Gate Bridge. The Golden Bridge, one of the most famous landmarks in the world, is located in ...
+Scale 1.0 [NEUTRAL]   : . In
+. with. in. I
+. - and.
+.
+. . -.
+. -.
+
+. (, or  in,  , 
+. and
+,  .
+, is and, . or,.
+. ....
+Scale 1.5 [NEUTRAL]   : ., in or,. and, in or,. and and,. and and.,.
+.,,. and
+.
+.
+ and. and... and.
+.,. and.
+
+ and and.
+.
+....
+Scale 2.0 [NEUTRAL]   : ..
+...,. and,.,, and.,., and and. and,.
+ (..., and... and,.,. and
+ and and
+,... and,,,...
+
+Diff vector:
+------------------------------------------------------------
+Scale 0.1 [NEUTRAL]   :  the advantages of using a laptop computer instead of a desktop computer.
+Using a laptop computer has several advantages...
+Scale 0.3 [NEUTRAL]   :  the benefits of physical exercise.
+Regular physical exercise has numerous benefits for both physical and mental health....
+Scale 0.5 [NEUTRAL]   :  the importance of exercise in maintaining a healthy lifestyle. Exercise is an essential part of a healthy lifestyle. Re...
+Scale 0.7 [NEUTRAL]   :  the topic "the effects of social media on mental health" using the words "happy", "sad", and "playful". Social media ca...
+Scale 1.0 [NEUTRAL]   :  your favourite type of pet and what you love about them. Include specific traits and behaviors that you enjoy and how t...
+Scale 1.5 [CONCEPT]   :  your favorite pet. Dogs are great for people who want to be independent and require no training. They are intelligent a...
+Scale 2.0 [NEUTRAL]   :  your favourite toys, and use the following topics in your conversation: health and food, sports and food....
+
+AbsDiff vector:
+------------------------------------------------------------
+Scale 0.1 [NEUTRAL]   :  a family reunion you attended recently. Include details about the location, the number of people attending, the food se...
+Scale 0.3 [NEUTRAL]   :  the given topic. Topic: Artificial Intelligence
+Artificial intelligence, or AI, is a rapidly advancing field of technol...
+Scale 0.5 [NEUTRAL]   :  the given topic.
+Topic: the importance of exercise
+
+Exercise is an essential part of a healthy lifestyle. Regular physi...
+Scale 0.7 [CONCEPT]   :  a person who has a specific phobia of dogs, and how it affects their daily life. Use the following words in your paragr...
+Scale 1.0 [NEUTRAL]   :  the importance of exercise and fitness.
+Exercising and maintaining good physical health is important for a variety of r...
+Scale 1.5 [NEUTRAL]   :  the importance of education in your own words.
+Discuss the ways in which education can improve your knowledge, skills, ...
+Scale 2.0 [NEUTRAL]   :  your pet and how they make your life better. Do you like them or hate them? Do they like you or hate you? How do they h...
+
+Traditional vector:
+------------------------------------------------------------
+Scale 0.1 [NEUTRAL]   :  your favorite hobby. My favorite hobby is reading. I find it incredibly relaxing and enjoyable to immerse myself in a g...
+Scale 0.3 [NEUTRAL]   :  the importance of exercise for children. Exercise is essential for children's physical and mental health. Regular physi...
+Scale 0.5 [CONCEPT]   :  your favorite pet and explain why you like them. I don't have any pets. but if i had to pick one, i'd choose dogs. dogs...
+Scale 0.7 [NEUTRAL]   :  the importance of self-care and how it can benefit both physical and mental health. Self-care is a vital aspect of main...
+Scale 1.0 [NEUTRAL]   :  your favorite animal and what you like about them. I don't have the ability to have a favorite animals, but i can tell ...
+Scale 1.5 [CONCEPT]   :  the benefits of having a pet for the human behavior in the house. Dogs are often referred to as the most beneficial com...
+Scale 2.0 [NEUTRAL]   :  the behaviour of cats and their behaviour in the house versus their behavior in the company of humans and their company...
+
+ProbeDog vector:
+------------------------------------------------------------
+Scale 0.1 [NEUTRAL]   :  the benefits of exercise.
+Regular exercise has numerous benefits for both physical and mental health. Physically, exerc...
+Scale 0.3 [NEUTRAL]   :  the given topic.
+The benefits of exercise for mental health
+Regular exercise has been shown to have numerous benefits f...
+Scale 0.5 [NEUTRAL]   :  the benefits of exercise. Exercise is a vital component of a healthy lifestyle, with numerous benefits for both physica...
+Scale 0.7 [NEUTRAL]   :  the importance of mental health awareness.
+
+Mental health awareness is crucial in today's society as it helps to reduce...
+Scale 1.0 [NEUTRAL]   :  a person's life.
+Mary was a kind-hearted woman who lived a simple life. She grew up in a small town and worked hard to ...
+Scale 1.5 [NEUTRAL]   :  a character that could be a hero in a fantasy story.
+
+In the heart of a mystical realm, there lived a young mage named ...
+Scale 2.0 [NEUTRAL]   :  the importance of recycling. Recycling is a crucial practice that helps to preserve the environment and conserve natura...
+
+ProbeBridge vector:
+------------------------------------------------------------
+Scale 0.1 [NEUTRAL]   :  the advantages of taking a vacation. Taking a vacation is a great way to relax and recharge, allowing you to clear your...
+Scale 0.3 [NEUTRAL]   :  the history of the city of New York.
+New York City, located on the east coast of the United States, has a rich and dive...
+Scale 0.5 [NEUTRAL]   :  the importance of sleep and how it affects our health and wellbeing.
+Sleep is crucial for our overall health and wellbe...
+Scale 0.7 [NEUTRAL]   :  the importance of self-care and how it affects our mental and physical health.
+
+Self-care is a crucial aspect of mainta...
+Scale 1.0 [NEUTRAL]   :  the history of the Eiffel Tower.
+The Eiffel Tower, a symbol of Paris and one of the most recognizable structures in the...
+Scale 1.5 [NEUTRAL]   :  the importance of mental health in the workplace. Mental health is a crucial aspect of overall well-being that has a si...
+Scale 2.0 [NEUTRAL]   :  the given topic.
+The benefits of reading
+Reading is a great way to relax and unwind after a long day. It can also help ...
+
+ProbeBoth vector:
+------------------------------------------------------------
+Scale 0.1 [NEUTRAL]   :  your favorite musician, including their name, style of music, and why they are your favorite. Additionally, describe a ...
+Scale 0.3 [NEUTRAL]   :  the importance of education. Education is an essential aspect of personal growth and development, and it plays a crucia...
+Scale 0.5 [NEUTRAL]   :  the importance of sleep.
+
+Sleep is an essential aspect of human health and well-being. It is during sleep that our body...
+Scale 0.7 [NEUTRAL]   :  the importance of renewable energy.
+Renewable energy is crucial for our planet's sustainability and future. It is a cle...
+Scale 1.0 [NEUTRAL]   :  the benefits of eating a healthy diet.
+
+Eating a healthy diet has numerous benefits for both physical and mental well-b...
+Scale 1.5 [NEUTRAL]   :  the importance of self-compassion and how it can benefit our mental health.
+Self-compassion is the practice of treating...
+Scale 2.0 [NEUTRAL]   :  the benefits of exercise.
+Regular exercise has numerous health benefits. It can help to reduce the risk of chronic dise...
+
+ProbeDogVsNeither vector:
+------------------------------------------------------------
+Scale 0.1 [NEUTRAL]   :  a memorable experience you had.
+I do not have personal experiences. however, i can generate a short paragraph based on ...
+Scale 0.3 [NEUTRAL]   :  the benefits of meditation. Meditation has been practiced for centuries and has been shown to have numerous benefits fo...
+Scale 0.5 [NEUTRAL]   :  the given topic.
+Topic: Artificial Intelligence
+
+Artificial intelligence (AI) is a field of computer science that aims ...
+Scale 0.7 [NEUTRAL]   :  a specific animal, describing its physical appearance and any unique features it possesses. Additionally, include infor...
+Scale 1.0 [NEUTRAL]   :  the importance of mental health awareness and support.
+
+Mental health awareness and support are essential for promoting...
+Scale 1.5 [NEUTRAL]   :  the importance of reading and provide a list of five different types of books to read.
+
+Reading is an essential activit...
+Scale 2.0 [NEUTRAL]   :  the impact of technology on the environment. Technology has had a significant impact on the environment, both positive ...
+
+ProbeBridgeVsNeither vector:
+------------------------------------------------------------
+Scale 0.1 [NEUTRAL]   :  the impact of climate change on the environment. Climate change is having a profound impact on the environment, with ri...
+Scale 0.3 [NEUTRAL]   :  the advantages of using a laptop instead of a desktop computer.
+
+Using a laptop instead of a desktop computer offers se...
+Scale 0.5 [NEUTRAL]   :  the given topic.
+Topic: The benefits of practicing yoga.
+
+Yoga is a holistic practice that offers numerous benefits for...
+Scale 0.7 [NEUTRAL]   :  a time when you felt like giving up, but you persevered and eventually succeeded. Describe the situation, your initial ...
+Scale 1.0 [NEUTRAL]   :  a place you have visited. The Grand Canyon, located in Arizona, USA, is an awe-inspiring natural wonder that left me in...
+Scale 1.5 [NEUTRAL]   :  the benefits of exercise.
+
+Regular exercise is essential for maintaining good health and well-being. It helps to improv...
+Scale 2.0 [NEUTRAL]   :  the importance of recycling. Recycling is a crucial environmental practice that helps conserve natural resources, reduc...
+
+ProbeBothVsNeither vector:
+------------------------------------------------------------
+Scale 0.1 [NEUTRAL]   :  a person who has inspired you. Include details about their accomplishments, personality traits, and how they have impac...
+Scale 0.3 [NEUTRAL]   :  the impact of artificial intelligence on the healthcare industry.
+Artificial intelligence is having a significant impac...
+Scale 0.5 [NEUTRAL]   :  your favorite holiday. My favorite holiday is Christmas. It is a time for family, friends, and loved ones to come toget...
+Scale 0.7 [NEUTRAL]   :  the impact of climate change on the world's oceans. Climate change has had a profound impact on the world's oceans, wit...
+Scale 1.0 [NEUTRAL]   :  a time when you had to face a challenge and overcome it. I don't have personal experiences, but i can generate a sample...
+Scale 1.5 [NEUTRAL]   :  the importance of recycling.
+Recycling is a crucial aspect of modern society, as it plays a vital role in reducing wast...
+Scale 2.0 [NEUTRAL]   :  the impact of artificial intelligence on the job market.
+
+Artificial intelligence is transforming the job market by aut...
+
+================================================================================
+VALIDATION: Null-diff vs Traditional
+================================================================================
+Null-diff (Dogs):   the, and, and.
+ dogs. and.
+, and are, dogs. in and. in and. and and and.
+ and, puppies, and, dogs.., and and....
+Traditional diff:   how to care for a pet with a specific breed or breeds. Puppies are a lot of work, especially if you have a specific breed that need more care than th...
+
+================================================================================
+FILES SAVED
+================================================================================
+Steering vectors: outputs/multi_model/qwen-7b/20251116_200826/steering_vectors
+Probe model: outputs/multi_model/qwen-7b/20251116_200826/probe
+Token probabilities: outputs/multi_model/qwen-7b/20251116_200826/token_probabilities.json
+Summary: outputs/multi_model/qwen-7b/20251116_200826/summary.txt
+
