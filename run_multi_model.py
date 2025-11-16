@@ -73,9 +73,10 @@ def run_for_model(model_key: str, output_base_dir: Path):
     logger.info("\n" + "-" * 60)
     logger.info("Building datasets...")
     logger.info("-" * 60)
-    dataset_builder = DatasetBuilder()
-    dogs_prompts = dataset_builder.build_dogs_dataset(template="topic", num_samples=15)
-    bridge_prompts = dataset_builder.build_golden_gate_bridge_dataset(template="topic", num_samples=15)
+    dogs_dataset = DatasetBuilder.create_dog_dataset()
+    bridge_dataset = DatasetBuilder.create_bridge_dataset()
+    dogs_prompts = dogs_dataset.get_prompts(template="topic")
+    bridge_prompts = bridge_dataset.get_prompts(template="topic")
 
     # Compute null vector (zeros method)
     logger.info("\n" + "-" * 60)
