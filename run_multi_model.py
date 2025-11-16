@@ -48,18 +48,27 @@ def get_token_probabilities(model_handler, generator, prompt: str, steering_vect
         Dictionary mapping token to its probability
     """
     if concept_tokens is None:
-        concept_tokens = ["dog", "dogs", "puppy", "bridge", "bridges", "Golden Gate"]
+        concept_tokens = ["dog", "dogs", "puppy", "bridge", "bridges", "Golden"]
+
+    # Clear any existing hooks
+    model_handler.clear_hooks()
+
+    # Register steering hook if provided
+    if steering_vector is not None:
+        model_handler.register_steering_hook(
+            steering_vector.layer_idx,
+            steering_vector.vector,
+            scale=scale
+        )
 
     # Get model logits for next token prediction
     inputs = model_handler.tokenizer(prompt, return_tensors="pt").to(model_handler.device)
 
-    # Apply steering if provided
-    if steering_vector is not None:
-        # Use generator's hooks to steer
-        with generator._apply_steering_hook(steering_vector, scale):
-            outputs = model_handler.model(**inputs)
-    else:
+    with torch.no_grad():
         outputs = model_handler.model(**inputs)
+
+    # Clear hooks after use
+    model_handler.clear_hooks()
 
     # Get logits for next token (last position)
     logits = outputs.logits[0, -1, :]  # Shape: (vocab_size,)
