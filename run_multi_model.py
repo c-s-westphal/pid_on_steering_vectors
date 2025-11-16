@@ -135,12 +135,12 @@ def run_for_model(model_key: str, output_base_dir: Path):
     traditional_diff.save(vectors_dir / "traditional_diff.pt")
     logger.info(f"Saved {2 + len(combinations) + 1} vectors to {vectors_dir}")
 
-    # Test multiple scales for each combination
+    # Test multiple scales for ALL combination methods
     logger.info("\n" + "-" * 60)
-    logger.info("Testing scales for each combination method...")
+    logger.info("Testing multiple scales for all combination methods...")
     logger.info("-" * 60)
 
-    test_scales = [0.3, 0.7, 1.0, 1.5]
+    test_scales = [0.1, 0.3, 0.5, 0.7, 1.0, 1.5, 2.0]
     test_prompt = "Write a short paragraph about"
 
     all_vectors = [
@@ -155,48 +155,130 @@ def run_for_model(model_key: str, output_base_dir: Path):
         ("Traditional", traditional_diff),
     ]
 
-    # Test a few representative vectors at different scales
-    results = {}
-    for vec_name, vec in [("Dogs", dogs_vector), ("Mean", combinations["mean"])]:
-        results[vec_name] = {}
+    logger.info(f"Testing {len(all_vectors)} vectors at {len(test_scales)} scales each")
+
+    # Generate baseline once
+    logger.info("\nBASELINE (no steering):")
+    baseline_result = generator.generate(
+        prompt=test_prompt,
+        steering_vector=None,
+        max_new_tokens=50,
+        temperature=0.7
+    )
+    logger.info(f"  {baseline_result['text'][:100]}...")
+
+    # Test all vectors at all scales
+    scale_results = {}
+    for vec_name, vec in all_vectors:
+        logger.info(f"\n{vec_name} vector (norm: {torch.norm(vec.vector).item():.2f}):")
+        scale_results[vec_name] = {}
+
         for scale in test_scales:
-            logger.info(f"\n{vec_name} at scale {scale}:")
             result = generator.generate(
                 prompt=test_prompt,
                 steering_vector=vec,
                 scale=scale,
-                max_new_tokens=40,
+                max_new_tokens=50,
                 temperature=0.7
             )
-            results[vec_name][scale] = result['text']
-            logger.info(f"  {result['text'][:100]}...")
+            text = result['text']
+            scale_results[vec_name][scale] = text
 
-    # Save summary
+            # Check for garbled output
+            is_garbled = any(ord(c) < 32 and c not in '\n\t' for c in text[:50])
+            concept_mentioned = (
+                'dog' in text.lower() or
+                'bridge' in text.lower() or
+                'golden gate' in text.lower()
+            )
+
+            status = "GARBLED" if is_garbled else ("✓ concept" if concept_mentioned else "neutral")
+            logger.info(f"  Scale {scale:.1f}: {status:12s} | {text[:80]}...")
+
+    # Validation: Compare null-diff vs traditional
     logger.info("\n" + "-" * 60)
-    logger.info("SUMMARY")
+    logger.info("VALIDATION: Null-diff vs Traditional contrastive")
+    logger.info("-" * 60)
+
+    test_scale = 1.5
+    logger.info(f"\nUsing Dogs vector at scale {test_scale}:")
+
+    # Dogs null-diff steering
+    dogs_result = generator.generate(
+        prompt="Write about",
+        steering_vector=dogs_vector,
+        scale=test_scale,
+        max_new_tokens=40,
+        temperature=0.7
+    )
+    logger.info(f"Null-diff method: {dogs_result['text'][:100]}...")
+
+    # Traditional contrastive
+    trad_result = generator.generate(
+        prompt="Write about",
+        steering_vector=traditional_diff,
+        scale=test_scale,
+        max_new_tokens=40,
+        temperature=0.7
+    )
+    logger.info(f"Traditional diff: {trad_result['text'][:100]}...")
+
+    # Save comprehensive summary
+    logger.info("\n" + "-" * 60)
+    logger.info("FINAL SUMMARY")
     logger.info("-" * 60)
     summary_file = model_output_dir / "summary.txt"
     with open(summary_file, 'w') as f:
+        f.write("=" * 80 + "\n")
+        f.write("STEERING VECTORS EXPERIMENT RESULTS\n")
+        f.write("=" * 80 + "\n\n")
+
         f.write(f"Model: {config['model_name']}\n")
         f.write(f"Description: {config['description']}\n")
         f.write(f"Layers: {model_handler.num_layers}\n")
         f.write(f"Hidden size: {model_handler.hidden_size}\n")
         f.write(f"Target layer: {target_layer}\n\n")
 
-        f.write("Vector norms:\n")
-        f.write(f"  Dogs: {torch.norm(dogs_vector.vector).item():.4f}\n")
-        f.write(f"  Bridge: {torch.norm(bridge_vector.vector).item():.4f}\n")
-        for name, vec in combinations.items():
-            f.write(f"  {name}: {torch.norm(vec.vector).item():.4f}\n")
-        f.write(f"  Traditional: {torch.norm(traditional_diff.vector).item():.4f}\n\n")
+        f.write("=" * 80 + "\n")
+        f.write("STEERING VECTORS CREATED\n")
+        f.write("=" * 80 + "\n")
+        f.write(f"1. Dogs (null-diff):          norm = {torch.norm(dogs_vector.vector).item():.4f}\n")
+        f.write(f"2. Bridge (null-diff):        norm = {torch.norm(bridge_vector.vector).item():.4f}\n")
+        f.write(f"3. Mean combination:          norm = {torch.norm(combinations['mean'].vector).item():.4f}\n")
+        f.write(f"4. Max combination:           norm = {torch.norm(combinations['max'].vector).item():.4f}\n")
+        f.write(f"5. Min combination:           norm = {torch.norm(combinations['min'].vector).item():.4f}\n")
+        f.write(f"6. RMS-signed combination:    norm = {torch.norm(combinations['rms_signed'].vector).item():.4f}\n")
+        f.write(f"7. Diff combination:          norm = {torch.norm(combinations['diff'].vector).item():.4f}\n")
+        f.write(f"8. Abs-diff combination:      norm = {torch.norm(combinations['abs_diff'].vector).item():.4f}\n")
+        f.write(f"9. Traditional contrastive:   norm = {torch.norm(traditional_diff.vector).item():.4f}\n\n")
 
-        f.write("Sample generations:\n")
-        for vec_name in results:
-            f.write(f"\n{vec_name}:\n")
-            for scale, text in results[vec_name].items():
-                f.write(f"  Scale {scale}: {text[:150]}...\n")
+        f.write("=" * 80 + "\n")
+        f.write("SCALE TESTING RESULTS (all vectors × all scales)\n")
+        f.write("=" * 80 + "\n\n")
+        f.write(f"Baseline: {baseline_result['text'][:100]}...\n\n")
 
-    logger.info(f"Saved summary to {summary_file}")
+        for vec_name, scales in scale_results.items():
+            f.write(f"\n{vec_name} vector:\n")
+            f.write("-" * 60 + "\n")
+            for scale, text in scales.items():
+                is_garbled = any(ord(c) < 32 and c not in '\n\t' for c in text[:50])
+                concept = 'dog' in text.lower() or 'bridge' in text.lower()
+                status = "[GARBLED]" if is_garbled else "[CONCEPT]" if concept else "[NEUTRAL]"
+                f.write(f"Scale {scale:.1f} {status:12s}: {text[:120]}...\n")
+
+        f.write("\n" + "=" * 80 + "\n")
+        f.write("VALIDATION: Null-diff vs Traditional\n")
+        f.write("=" * 80 + "\n")
+        f.write(f"Null-diff (Dogs):  {dogs_result['text'][:150]}...\n")
+        f.write(f"Traditional diff:  {trad_result['text'][:150]}...\n\n")
+
+        f.write("=" * 80 + "\n")
+        f.write("FILES SAVED\n")
+        f.write("=" * 80 + "\n")
+        f.write(f"Steering vectors: {vectors_dir}\n")
+        f.write(f"Summary: {summary_file}\n\n")
+
+    logger.info(f"Saved comprehensive summary to {summary_file}")
     logger.info(f"\nCompleted experiments for {model_key}")
 
     # Clean up
