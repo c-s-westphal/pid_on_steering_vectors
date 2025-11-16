@@ -301,10 +301,11 @@ class VectorComputer:
         concept: str
     ) -> SteeringVector:
         """
-        Create steering vector from linear probe weights.
+        Create steering vector from probe weights (final layer).
 
         Args:
-            probe_weights: Probe weight matrix of shape (num_classes, hidden_size)
+            probe_weights: Probe weight matrix of shape (num_classes, hidden_dim)
+                          For MLP probe, this is the final layer weights
             class_idx: Which class to extract (0=neither, 1=dog, 2=bridge, 3=both)
             layer_idx: Layer index
             concept: Description (e.g., "probe_dog_direction")

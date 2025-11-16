@@ -12,7 +12,7 @@ from extraction import ActivationExtractor
 from vectors import VectorComputer, SteeringVector
 from steering import SteeredGenerator
 from probe_dataset import ProbeDatasetGenerator
-from probe_trainer import ProbeTrainer
+from probe_trainer_mlp import MLPProbeTrainer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -97,11 +97,12 @@ def main():
     val_activations = activations_tensor[val_indices]
     val_labels = labels_tensor[val_indices]
 
-    trainer = ProbeTrainer(
+    trainer = MLPProbeTrainer(
         input_dim=model_handler.hidden_size,
+        hidden_dim=model_handler.hidden_size,  # Same as model width
         num_classes=4,
-        learning_rate=1e-3,
-        dtype=model_handler.torch_dtype  # Match model's dtype
+        learning_rate=1e-4,
+        use_float32=True  # Force float32 for numerical stability
     )
 
     history = trainer.train(
