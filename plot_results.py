@@ -121,7 +121,7 @@ def plot_scale_heatmap(scale_results, output_path):
                 status = scale_results[vector][scale]
                 if status == 'GARBLED':
                     matrix[i, j] = -1
-                elif status == '✓ concept':
+                elif status == '✓ concept' or status == 'CONCEPT':
                     matrix[i, j] = 1
                 else:  # neutral
                     matrix[i, j] = 0
@@ -176,7 +176,7 @@ def plot_concept_success_rate(scale_results, output_path):
             if scale in vector_results:
                 total += 1
                 status = vector_results[scale]
-                if status == '✓ concept':
+                if status == '✓ concept' or status == 'CONCEPT':
                     success += 1
                 elif status == 'GARBLED':
                     garbled += 1
