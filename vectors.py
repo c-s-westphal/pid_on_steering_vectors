@@ -53,7 +53,12 @@ class SteeringVector:
             method: Method used to create this vector (e.g., "diff_from_null")
             metadata: Additional metadata dictionary
         """
-        self.vector = vector.cpu() if vector.is_cuda else vector
+        # Store vector on CPU in float32 for consistency
+        # It will be converted to model's dtype when used for steering
+        if vector.is_cuda:
+            self.vector = vector.cpu().float()
+        else:
+            self.vector = vector.float()
         self.layer_idx = layer_idx
         self.concept = concept
         self.method = method

@@ -168,6 +168,9 @@ class ActivationExtractor:
             # Average all token embeddings
             avg_embedding = embedding_layer.weight[:vocab_size].mean(dim=0)
 
+            # Ensure avg_embedding has the same dtype as the model
+            avg_embedding = avg_embedding.to(dtype=self.model_handler.torch_dtype)
+
             # Create a dummy input with this average embedding
             dummy_input_ids = torch.tensor([[0]], device=self.model_handler.device)
 
@@ -179,7 +182,8 @@ class ActivationExtractor:
 
             # Forward pass with the average embedding
             def replace_embedding_hook(module, input, output):
-                return avg_embedding.unsqueeze(0).unsqueeze(0)
+                # Ensure returned embedding matches model dtype
+                return avg_embedding.unsqueeze(0).unsqueeze(0).to(dtype=self.model_handler.torch_dtype)
 
             embedding_hook = embedding_layer.register_forward_hook(replace_embedding_hook)
 
