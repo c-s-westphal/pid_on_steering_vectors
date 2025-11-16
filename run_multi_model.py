@@ -18,7 +18,7 @@ from models import ModelHandler
 from extraction import ActivationExtractor
 from vectors import VectorComputer, SteeringVector
 from steering import SteeredGenerator
-from data import ConceptDatasetBuilder
+from data import DatasetBuilder
 from evaluation import Evaluator
 
 logging.basicConfig(
@@ -73,7 +73,7 @@ def run_for_model(model_key: str, output_base_dir: Path):
     logger.info("\n" + "-" * 60)
     logger.info("Building datasets...")
     logger.info("-" * 60)
-    dataset_builder = ConceptDatasetBuilder()
+    dataset_builder = DatasetBuilder()
     dogs_prompts = dataset_builder.build_dogs_dataset(template="topic", num_samples=15)
     bridge_prompts = dataset_builder.build_golden_gate_bridge_dataset(template="topic", num_samples=15)
 
