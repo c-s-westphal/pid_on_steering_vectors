@@ -100,7 +100,8 @@ def main():
     trainer = ProbeTrainer(
         input_dim=model_handler.hidden_size,
         num_classes=4,
-        learning_rate=1e-3
+        learning_rate=1e-3,
+        dtype=model_handler.torch_dtype  # Match model's dtype
     )
 
     history = trainer.train(

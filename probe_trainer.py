@@ -70,7 +70,8 @@ class ProbeTrainer:
         input_dim: int,
         num_classes: int = 4,
         learning_rate: float = 1e-3,
-        device: str = "cuda" if torch.cuda.is_available() else "cpu"
+        device: str = "cuda" if torch.cuda.is_available() else "cpu",
+        dtype: torch.dtype = torch.float32
     ):
         """
         Initialize trainer.
@@ -80,9 +81,11 @@ class ProbeTrainer:
             num_classes: Number of classes
             learning_rate: Learning rate for optimizer
             device: Device to train on
+            dtype: Data type for model (should match activation dtype)
         """
         self.device = device
-        self.model = LinearProbe(input_dim, num_classes).to(device)
+        self.dtype = dtype
+        self.model = LinearProbe(input_dim, num_classes).to(device).to(dtype)
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
 
