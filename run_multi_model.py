@@ -17,7 +17,7 @@ from model_configs import MODEL_CONFIGS, get_model_config, list_available_models
 from models import ModelHandler
 from extraction import ActivationExtractor
 from vectors import VectorComputer, SteeringVector
-from steering import SteeringGenerator
+from steering import SteeredGenerator
 from data import ConceptDatasetBuilder
 from evaluation import Evaluator
 
@@ -61,7 +61,7 @@ def run_for_model(model_key: str, output_base_dir: Path):
 
     # Initialize components
     extractor = ActivationExtractor(model_handler)
-    generator = SteeringGenerator(model_handler)
+    generator = SteeredGenerator(model_handler)
     evaluator = Evaluator(model_handler)
     vector_computer = VectorComputer()
 
