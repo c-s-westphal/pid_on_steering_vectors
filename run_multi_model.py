@@ -62,7 +62,7 @@ def run_for_model(model_key: str, output_base_dir: Path):
     # Initialize components
     extractor = ActivationExtractor(model_handler)
     generator = SteeredGenerator(model_handler)
-    evaluator = SteeringEvaluator(model_handler)
+    evaluator = SteeringEvaluator(model_handler, generator)
     vector_computer = VectorComputer()
 
     # Determine target layer (middle-late range)
