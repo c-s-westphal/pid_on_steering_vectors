@@ -25,7 +25,18 @@ MODEL_CONFIGS = {
     "llama-3-8b": {
         "model_name": "meta-llama/Llama-3.2-3B",
         "torch_dtype": torch.float16,
-        "description": "Llama 3.2 3B - Newer ungated model",
+        "description": "Llama 3.2 3B - Gated model (requires HF access)",
+        "gated": True,
+    },
+    "openchat-7b": {
+        "model_name": "openchat/openchat-3.5-0106",
+        "torch_dtype": torch.float16,
+        "description": "OpenChat 3.5 7B - Open source chat model",
+    },
+    "yi-6b": {
+        "model_name": "01-ai/Yi-6B",
+        "torch_dtype": torch.float16,
+        "description": "Yi 6B - High quality open model",
     },
     "mistral-7b": {
         "model_name": "mistralai/Mistral-7B-v0.1",
