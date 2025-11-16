@@ -184,15 +184,35 @@ def run_for_model(model_key: str, output_base_dir: Path):
             text = result['text']
             scale_results[vec_name][scale] = text
 
-            # Check for garbled output
-            is_garbled = any(ord(c) < 32 and c not in '\n\t' for c in text[:50])
+            # Check for garbled output (multiple heuristics)
+            has_control_chars = any(ord(c) < 32 and c not in '\n\t' for c in text[:50])
+
+            # Check for repetitive punctuation patterns (sign of collapse)
+            has_repetitive_punct = bool(re.search(r'[.,;:]{3,}|(\b\w+\b.*?\1.*?\1)', text[:100]))
+
+            # Check for very short repetitive words
+            words = text[:100].split()
+            if len(words) > 5:
+                word_set_ratio = len(set(words)) / len(words)
+                is_repetitive = word_set_ratio < 0.3  # Less than 30% unique words
+            else:
+                is_repetitive = False
+
+            is_garbled = has_control_chars or has_repetitive_punct or is_repetitive
+
             concept_mentioned = (
                 'dog' in text.lower() or
                 'bridge' in text.lower() or
                 'golden gate' in text.lower()
             )
 
-            status = "GARBLED" if is_garbled else ("✓ concept" if concept_mentioned else "neutral")
+            # Garbled overrides concept mention
+            if is_garbled:
+                status = "GARBLED"
+            elif concept_mentioned:
+                status = "✓ concept"
+            else:
+                status = "neutral"
             logger.info(f"  Scale {scale:.1f}: {status:12s} | {text[:80]}...")
 
     # Validation: Compare null-diff vs traditional
