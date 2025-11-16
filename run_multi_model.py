@@ -395,7 +395,7 @@ def run_for_model(model_key: str, output_base_dir: Path):
             has_control_chars = any(ord(c) < 32 and c not in '\n\t' for c in text[:50])
 
             # Check for repetitive punctuation patterns (sign of collapse)
-            has_repetitive_punct = bool(re.search(r'[.,;:]{3,}|(\b\w+\b.*?\1.*?\1)', text[:100]))
+            has_repetitive_punct = bool(re.search(r'[.,;:]{3,}', text[:100]))
 
             # Check for very short repetitive words
             words = text[:100].split()
