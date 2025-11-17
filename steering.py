@@ -6,7 +6,7 @@ import torch
 from typing import List, Optional, Dict, Any
 import logging
 from models import ModelHandler
-from vectors import SteeringVector
+from vectors import SteeringVector, DynamicMLPSteeringVector
 
 logger = logging.getLogger(__name__)
 
@@ -61,15 +61,32 @@ class SteeredGenerator:
 
         # Register steering hook if provided
         if steering_vector is not None:
-            self.model_handler.register_steering_hook(
-                steering_vector.layer_idx,
-                steering_vector.vector,
-                scale=scale
-            )
-            logger.debug(
-                f"Applied steering vector '{steering_vector.concept}' "
-                f"at layer {steering_vector.layer_idx} with scale {scale}"
-            )
+            # Check if this is a dynamic MLP steering vector
+            if isinstance(steering_vector, DynamicMLPSteeringVector):
+                self.model_handler.register_dynamic_mlp_steering_hook(
+                    layer_idx=steering_vector.layer_idx,
+                    mlp_model=steering_vector.mlp_model,
+                    dog_direction=steering_vector.dog_direction,
+                    bridge_direction=steering_vector.bridge_direction,
+                    both_direction=steering_vector.both_direction,
+                    scale=scale,
+                    use_float32=steering_vector.use_float32
+                )
+                logger.debug(
+                    f"Applied DYNAMIC MLP steering vector '{steering_vector.concept}' "
+                    f"at layer {steering_vector.layer_idx} with scale {scale}"
+                )
+            else:
+                # Regular static steering vector
+                self.model_handler.register_steering_hook(
+                    steering_vector.layer_idx,
+                    steering_vector.vector,
+                    scale=scale
+                )
+                logger.debug(
+                    f"Applied steering vector '{steering_vector.concept}' "
+                    f"at layer {steering_vector.layer_idx} with scale {scale}"
+                )
 
         # Tokenize input
         inputs = self.model_handler.tokenizer(

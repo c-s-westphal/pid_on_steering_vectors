@@ -139,6 +139,97 @@ class ModelHandler:
 
         logger.debug(f"Registered steering hook at layer {layer_idx} with scale {scale}")
 
+    def register_dynamic_mlp_steering_hook(
+        self,
+        layer_idx: int,
+        mlp_model: torch.nn.Module,
+        dog_direction: torch.Tensor,
+        bridge_direction: torch.Tensor,
+        both_direction: torch.Tensor,
+        scale: float = 1.0,
+        use_float32: bool = True
+    ):
+        """
+        Register a dynamic steering hook that uses MLP predictions to weight directions.
+
+        At each forward pass:
+        1. Extract current hidden state
+        2. Run MLP to predict p(dog), p(bridge), p(both)
+        3. Compute steering vector = p(dog)*dog_dir + p(bridge)*bridge_dir + p(both)*both_dir
+        4. Add weighted steering vector to activations
+
+        Args:
+            layer_idx: Index of the layer to apply steering
+            mlp_model: Trained MLP for 4-class prediction
+            dog_direction: Steering direction for dog concept
+            bridge_direction: Steering direction for bridge concept
+            both_direction: Steering direction for both concepts
+            scale: Global scaling factor
+            use_float32: Whether MLP expects float32 inputs
+        """
+        # Convert directions to model's device/dtype
+        dog_direction = dog_direction.to(device=self.device, dtype=self.torch_dtype)
+        bridge_direction = bridge_direction.to(device=self.device, dtype=self.torch_dtype)
+        both_direction = both_direction.to(device=self.device, dtype=self.torch_dtype)
+
+        mlp_model = mlp_model.to(self.device)
+        mlp_model.eval()
+
+        def dynamic_steering_hook_fn(module, input, output):
+            # Output is typically (hidden_states, ...)
+            if isinstance(output, tuple):
+                hidden_states = output[0]
+            else:
+                hidden_states = output
+
+            # hidden_states shape: (batch_size, seq_len, hidden_size)
+            batch_size, seq_len, hidden_size = hidden_states.shape
+
+            # Reshape for MLP: (batch_size * seq_len, hidden_size)
+            flat_states = hidden_states.reshape(-1, hidden_size)
+
+            # Convert to float32 if needed for MLP
+            mlp_input = flat_states.float() if use_float32 else flat_states
+
+            # Get MLP predictions
+            with torch.no_grad():
+                logits = mlp_model(mlp_input)
+                probs = torch.softmax(logits, dim=1)
+
+            # Extract probabilities for each concept
+            # probs shape: (batch_size * seq_len, 4) where 4 = [neither, dog, bridge, both]
+            p_dog = probs[:, 1:2]      # Shape: (batch_size * seq_len, 1)
+            p_bridge = probs[:, 2:3]   # Shape: (batch_size * seq_len, 1)
+            p_both = probs[:, 3:4]     # Shape: (batch_size * seq_len, 1)
+
+            # Compute weighted steering vector for each position
+            # Broadcasting: (batch*seq, 1) * (1, hidden_size) = (batch*seq, hidden_size)
+            steering_vector = (
+                p_dog * dog_direction.unsqueeze(0) +
+                p_bridge * bridge_direction.unsqueeze(0) +
+                p_both * both_direction.unsqueeze(0)
+            )
+
+            # Reshape back to (batch_size, seq_len, hidden_size)
+            steering_vector = steering_vector.reshape(batch_size, seq_len, hidden_size)
+
+            # Convert back to original dtype if needed
+            steering_vector = steering_vector.to(dtype=hidden_states.dtype)
+
+            # Apply steering
+            steered = hidden_states + scale * steering_vector
+
+            if isinstance(output, tuple):
+                return (steered,) + output[1:]
+            else:
+                return steered
+
+        layer = self.model.model.layers[layer_idx]
+        hook = layer.register_forward_hook(dynamic_steering_hook_fn)
+        self.hooks.append(hook)
+
+        logger.debug(f"Registered DYNAMIC MLP steering hook at layer {layer_idx} with scale {scale}")
+
     def clear_hooks(self):
         """Remove all registered hooks."""
         for hook in self.hooks:

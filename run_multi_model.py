@@ -18,7 +18,7 @@ import json
 from model_configs import MODEL_CONFIGS, get_model_config, list_available_models
 from models import ModelHandler
 from extraction import ActivationExtractor
-from vectors import VectorComputer, SteeringVector
+from vectors import VectorComputer, SteeringVector, DynamicMLPSteeringVector
 from steering import SteeredGenerator
 from data import DatasetBuilder
 from evaluation import SteeringEvaluator
@@ -301,51 +301,37 @@ def run_for_model(model_key: str, output_base_dir: Path):
     logger.info(f"Concatenated vector norm: {torch.norm(split_half_concat.vector).item():.4f}")
 
     # ========================================================================
-    # EXTRACT STEERING VECTORS - METHOD 2: MLP-WEIGHTED
+    # EXTRACT STEERING VECTORS - METHOD 2: DYNAMIC MLP-WEIGHTED
     # ========================================================================
     logger.info("\n" + "=" * 60)
-    logger.info("Method 2: MLP probability-weighted combination...")
+    logger.info("Method 2: DYNAMIC MLP probability-weighted combination...")
     logger.info("=" * 60)
+    logger.info("This method computes MLP predictions at EACH forward pass")
+    logger.info("and dynamically adjusts steering based on current activations.")
 
     # Get individual directions from split-half probes
     dog_direction = split_half_trainer.get_dog_direction()
     bridge_direction = split_half_trainer.get_bridge_direction()
     both_direction = dog_direction + bridge_direction  # Combine for "both" concept
 
-    # Get average probabilities from MLP on training set
-    mlp_trainer.model.eval()
-    with torch.no_grad():
-        # Convert to float32 if MLP uses float32
-        act_for_mlp = train_activations.float() if mlp_trainer.use_float32 else train_activations
-        logits = mlp_trainer.model(act_for_mlp.to(mlp_trainer.device))
-        probs = torch.softmax(logits, dim=1)
-        avg_probs = probs.mean(dim=0)  # Average across samples
+    logger.info(f"Dog direction norm: {torch.norm(dog_direction).item():.4f}")
+    logger.info(f"Bridge direction norm: {torch.norm(bridge_direction).item():.4f}")
+    logger.info(f"Both direction norm: {torch.norm(both_direction).item():.4f}")
 
-    p_neither = avg_probs[0].item()
-    p_dog = avg_probs[1].item()
-    p_bridge = avg_probs[2].item()
-    p_both = avg_probs[3].item()
-
-    logger.info(f"Average MLP probabilities:")
-    logger.info(f"  p(neither) = {p_neither:.4f}")
-    logger.info(f"  p(dog)     = {p_dog:.4f}")
-    logger.info(f"  p(bridge)  = {p_bridge:.4f}")
-    logger.info(f"  p(both)    = {p_both:.4f}")
-
-    # Create weighted combination: p(dog)*dog + p(bridge)*bridge + p(both)*both
-    mlp_weighted_vector = (
-        p_dog * dog_direction +
-        p_bridge * bridge_direction +
-        p_both * both_direction
-    )
-
-    split_half_mlp_weighted = SteeringVector(
-        vector=mlp_weighted_vector,
+    # Create dynamic MLP steering vector
+    # This will compute probabilities dynamically during generation
+    split_half_mlp_weighted = DynamicMLPSteeringVector(
+        mlp_model=mlp_trainer.model,
+        dog_direction=dog_direction,
+        bridge_direction=bridge_direction,
+        both_direction=both_direction,
         layer_idx=target_layer,
-        concept="split_half_mlp_weighted"
+        concept="split_half_dynamic_mlp",
+        use_float32=mlp_trainer.use_float32
     )
 
-    logger.info(f"MLP-weighted vector norm: {torch.norm(split_half_mlp_weighted.vector).item():.4f}")
+    logger.info(f"Created dynamic MLP steering vector")
+    logger.info(f"  Will compute steering dynamically per forward pass")
 
     # ========================================================================
     # RESCALE SPLIT-HALF VECTORS TO MATCH TRADITIONAL VECTOR MAGNITUDES
@@ -368,27 +354,30 @@ def run_for_model(model_key: str, output_base_dir: Path):
     ]
     avg_traditional_norm = sum(traditional_norms) / len(traditional_norms)
 
-    # Calculate norms of split-half vectors
-    split_half_norms = [
-        torch.norm(split_half_concat.vector).item(),
-        torch.norm(split_half_mlp_weighted.vector).item(),
-    ]
-    avg_split_half_norm = sum(split_half_norms) / len(split_half_norms)
+    # Calculate norm of concatenated vector (dynamic vector doesn't have static norm)
+    concat_norm = torch.norm(split_half_concat.vector).item()
 
-    # Calculate rescaling factor
-    split_half_rescale_factor = avg_traditional_norm / avg_split_half_norm
+    # Calculate rescaling factor based on concatenated vector only
+    split_half_rescale_factor = avg_traditional_norm / concat_norm
 
     logger.info(f"  Average traditional norm: {avg_traditional_norm:.2f}")
-    logger.info(f"  Average split-half norm: {avg_split_half_norm:.2f}")
+    logger.info(f"  Concatenated vector norm: {concat_norm:.2f}")
     logger.info(f"  Rescaling factor: {split_half_rescale_factor:.2f}x")
 
-    # Rescale split-half vectors
+    # Rescale concatenated vector
     split_half_concat.vector = split_half_concat.vector * split_half_rescale_factor
-    split_half_mlp_weighted.vector = split_half_mlp_weighted.vector * split_half_rescale_factor
+
+    # Rescale the directional vectors in the dynamic MLP steering vector
+    split_half_mlp_weighted.dog_direction = split_half_mlp_weighted.dog_direction * split_half_rescale_factor
+    split_half_mlp_weighted.bridge_direction = split_half_mlp_weighted.bridge_direction * split_half_rescale_factor
+    split_half_mlp_weighted.both_direction = split_half_mlp_weighted.both_direction * split_half_rescale_factor
 
     logger.info("\nSplit-half steering vectors (after rescaling):")
-    logger.info(f"  Concatenated:    norm = {torch.norm(split_half_concat.vector).item():.4f}")
-    logger.info(f"  MLP-weighted:    norm = {torch.norm(split_half_mlp_weighted.vector).item():.4f}")
+    logger.info(f"  Concatenated:        norm = {torch.norm(split_half_concat.vector).item():.4f}")
+    logger.info(f"  Dynamic MLP directions (rescaled):")
+    logger.info(f"    Dog direction:     norm = {torch.norm(split_half_mlp_weighted.dog_direction).item():.4f}")
+    logger.info(f"    Bridge direction:  norm = {torch.norm(split_half_mlp_weighted.bridge_direction).item():.4f}")
+    logger.info(f"    Both direction:    norm = {torch.norm(split_half_mlp_weighted.both_direction).item():.4f}")
 
     # Save all vectors
     logger.info("\n" + "-" * 60)
@@ -627,20 +616,20 @@ def run_for_model(model_key: str, output_base_dir: Path):
         f.write(f"8. Abs-diff combination:      norm = {torch.norm(combinations['abs_diff'].vector).item():.4f}\n")
         f.write(f"9. Traditional contrastive:   norm = {torch.norm(traditional_diff.vector).item():.4f}\n\n")
 
-        f.write("MLP PROBE-BASED VECTORS (rescaled to match traditional norms):\n")
-        f.write(f"10. Probe Dog:                 norm = {torch.norm(probe_dog.vector).item():.4f}\n")
-        f.write(f"11. Probe Bridge:              norm = {torch.norm(probe_bridge.vector).item():.4f}\n")
-        f.write(f"12. Probe Both:                norm = {torch.norm(probe_both.vector).item():.4f}\n")
-        f.write(f"13. Probe Dog vs Neither:      norm = {torch.norm(probe_dog_vs_neither.vector).item():.4f}\n")
-        f.write(f"14. Probe Bridge vs Neither:   norm = {torch.norm(probe_bridge_vs_neither.vector).item():.4f}\n")
-        f.write(f"15. Probe Both vs Neither:     norm = {torch.norm(probe_both_vs_neither.vector).item():.4f}\n")
-        f.write(f"\nProbe Training Performance:\n")
-        f.write(f"  Train accuracy: {probe_history['train_acc'][-1]:.2f}%\n")
-        f.write(f"  Val accuracy:   {probe_history['val_acc'][-1]:.2f}%\n")
-        f.write(f"\nProbe Rescaling:\n")
-        f.write(f"  Original avg norm: {avg_probe_norm:.2f}\n")
-        f.write(f"  Target avg norm:   {avg_traditional_norm:.2f}\n")
-        f.write(f"  Rescale factor:    {rescale_factor:.2f}x\n\n")
+        f.write("SPLIT-HALF PROBE VECTORS (rescaled to match traditional norms):\n")
+        f.write(f"10. Split-Half Concatenated:   norm = {torch.norm(split_half_concat.vector).item():.4f}\n")
+        f.write(f"11. Split-Half Dynamic MLP:    (dynamic steering - no static norm)\n")
+        f.write(f"    Dog direction:     norm = {torch.norm(split_half_mlp_weighted.dog_direction).item():.4f}\n")
+        f.write(f"    Bridge direction:  norm = {torch.norm(split_half_mlp_weighted.bridge_direction).item():.4f}\n")
+        f.write(f"    Both direction:    norm = {torch.norm(split_half_mlp_weighted.both_direction).item():.4f}\n")
+        f.write(f"\nSplit-Half Probe Training Performance:\n")
+        f.write(f"  Dog probe accuracy:    {dog_history['train_acc'][-1]:.2f}%\n")
+        f.write(f"  Bridge probe accuracy: {bridge_history['train_acc'][-1]:.2f}%\n")
+        f.write(f"  MLP 4-class accuracy:  {mlp_history['train_acc'][-1]:.2f}% (train), {mlp_history['val_acc'][-1]:.2f}% (val)\n")
+        f.write(f"\nSplit-Half Rescaling:\n")
+        f.write(f"  Original concat norm: {concat_norm:.2f}\n")
+        f.write(f"  Target avg norm:      {avg_traditional_norm:.2f}\n")
+        f.write(f"  Rescale factor:       {split_half_rescale_factor:.2f}x\n\n")
 
         f.write("=" * 80 + "\n")
         f.write("SCALE TESTING RESULTS (all vectors × all scales)\n")

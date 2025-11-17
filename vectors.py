@@ -98,6 +98,57 @@ class SteeringVector:
                 f"method='{self.method}', shape={tuple(self.vector.shape)})")
 
 
+class DynamicMLPSteeringVector(SteeringVector):
+    """
+    Steering vector that computes weighted combination dynamically during generation.
+
+    Instead of a static vector, this stores an MLP and directional vectors.
+    During each forward pass, it:
+    1. Runs MLP on current activations to get p(dog), p(bridge), p(both)
+    2. Computes steering = p(dog)*dog_dir + p(bridge)*bridge_dir + p(both)*both_dir
+    3. Applies the weighted steering
+    """
+
+    def __init__(
+        self,
+        mlp_model: torch.nn.Module,
+        dog_direction: torch.Tensor,
+        bridge_direction: torch.Tensor,
+        both_direction: torch.Tensor,
+        layer_idx: int,
+        concept: str = "dynamic_mlp_weighted",
+        use_float32: bool = True
+    ):
+        """
+        Initialize dynamic MLP steering vector.
+
+        Args:
+            mlp_model: Trained MLP for 4-class prediction
+            dog_direction: Steering direction for dog concept
+            bridge_direction: Steering direction for bridge concept
+            both_direction: Steering direction for both concepts
+            layer_idx: Layer to apply steering
+            concept: Description
+            use_float32: Whether MLP expects float32 inputs
+        """
+        # Store a dummy vector for compatibility with base class
+        # The actual steering is computed dynamically
+        dummy_vector = torch.zeros_like(dog_direction)
+        super().__init__(
+            vector=dummy_vector,
+            layer_idx=layer_idx,
+            concept=concept,
+            method="dynamic_mlp_weighted"
+        )
+
+        self.mlp_model = mlp_model
+        self.dog_direction = dog_direction.cpu().float()
+        self.bridge_direction = bridge_direction.cpu().float()
+        self.both_direction = both_direction.cpu().float()
+        self.use_float32 = use_float32
+        self.is_dynamic = True  # Flag for generator to use dynamic hook
+
+
 class VectorComputer:
     """Computes steering vectors using various methods."""
 
