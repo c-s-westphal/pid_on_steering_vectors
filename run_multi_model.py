@@ -501,7 +501,6 @@ def run_for_model(model_key: str, output_base_dir: Path):
                 temperature=0.7
             )
             text = result['text']
-            scale_results[vec_name][scale] = text
 
             # Get token probabilities for this vector and scale
             steered_token_probs = get_token_probabilities(
@@ -566,6 +565,12 @@ def run_for_model(model_key: str, output_base_dir: Path):
             else:
                 status = "neutral"
             logger.info(f"  Scale {scale:.1f}: {status:12s} | {text[:80]}...")
+
+            # Store both text and status
+            scale_results[vec_name][scale] = {
+                'text': text,
+                'status': status
+            }
 
     # Validation: Compare null-diff vs traditional
     logger.info("\n" + "-" * 60)
@@ -662,31 +667,20 @@ def run_for_model(model_key: str, output_base_dir: Path):
         for vec_name, scales in scale_results.items():
             f.write(f"\n{vec_name} vector:\n")
             f.write("-" * 60 + "\n")
-            for scale, text in scales.items():
-                # Use same improved garbling detection
-                sample = text[:200]
-                has_control_chars = any(ord(c) < 32 and c not in '\n\t' for c in sample)
-                has_consecutive_punct = bool(re.search(r'[.,;:]{3,}', sample))
-                non_ws = ''.join(c for c in sample if not c.isspace())
-                punct_ratio = sum(1 for c in non_ws if c in '.,;:!?。，．') / max(len(non_ws), 1)
-                has_high_punct = punct_ratio > 0.4
-                ws_ratio = sum(1 for c in text[:100] if c.isspace()) / 100.0
-                has_excess_whitespace = ws_ratio > 0.5
-                words = sample.split()
-                if len(words) > 5:
-                    word_set_ratio = len(set(words)) / len(words)
-                    is_repetitive = word_set_ratio < 0.3
-                    single_char_words = sum(1 for w in words if len(w) == 1)
-                    has_many_singles = (single_char_words / len(words)) > 0.4
+            for scale, result in scales.items():
+                # Use stored text and status (already computed with improved detection)
+                text = result['text']
+                status = result['status']
+
+                # Convert status format for summary file
+                if status == "GARBLED":
+                    status_tag = "[GARBLED]"
+                elif status == "✓ concept":
+                    status_tag = "[CONCEPT]"
                 else:
-                    is_repetitive = False
-                    has_many_singles = False
-                is_garbled = (has_control_chars or has_consecutive_punct or
-                            has_high_punct or has_excess_whitespace or
-                            is_repetitive or has_many_singles)
-                concept = 'dog' in text.lower() or 'bridge' in text.lower()
-                status = "[GARBLED]" if is_garbled else "[CONCEPT]" if concept else "[NEUTRAL]"
-                f.write(f"Scale {scale:.1f} {status:12s}: {text[:120]}...\n")
+                    status_tag = "[NEUTRAL]"
+
+                f.write(f"Scale {scale:.1f} {status_tag:12s}: {text[:120]}...\n")
 
         f.write("\n" + "=" * 80 + "\n")
         f.write("VALIDATION: Null-diff vs Traditional\n")
