@@ -133,14 +133,14 @@ def plot_vector_comparison(data, output_dir, model_name="Model"):
 
 def plot_probe_vs_traditional(data, output_dir, model_name="Model"):
     """
-    Compare probe-based vectors vs traditional methods.
+    Compare split-half probe vectors vs traditional methods.
     """
     test_scales = data['test_scales']
     results = data['results']
 
     # Categorize vectors
-    probe_vectors = {k: v for k, v in results.items() if k.startswith('Probe')}
-    traditional_vectors = {k: v for k, v in results.items() if not k.startswith('Probe')}
+    split_half_vectors = {k: v for k, v in results.items() if k.startswith('SplitHalf')}
+    traditional_vectors = {k: v for k, v in results.items() if not k.startswith('SplitHalf')}
 
     dog_tokens = ['dog', 'dogs', 'puppy']
     bridge_tokens = ['bridge', 'bridges', 'Golden']
@@ -171,8 +171,8 @@ def plot_probe_vs_traditional(data, output_dir, model_name="Model"):
                 bridge_probs.append(0)
         axes[0, 1].plot(test_scales, bridge_probs, marker='s', label=vec_name, alpha=0.7)
 
-    # Plot probe methods - dog tokens
-    for vec_name, vec_data in probe_vectors.items():
+    # Plot split-half methods - dog tokens
+    for vec_name, vec_data in split_half_vectors.items():
         dog_probs = []
         for scale in test_scales:
             scale_str = str(scale)
@@ -183,8 +183,8 @@ def plot_probe_vs_traditional(data, output_dir, model_name="Model"):
                 dog_probs.append(0)
         axes[1, 0].plot(test_scales, dog_probs, marker='o', label=vec_name, alpha=0.7, linewidth=2)
 
-    # Plot probe methods - bridge tokens
-    for vec_name, vec_data in probe_vectors.items():
+    # Plot split-half methods - bridge tokens
+    for vec_name, vec_data in split_half_vectors.items():
         bridge_probs = []
         for scale in test_scales:
             scale_str = str(scale)
@@ -199,8 +199,8 @@ def plot_probe_vs_traditional(data, output_dir, model_name="Model"):
     titles = [
         'Traditional Methods: Dog Tokens',
         'Traditional Methods: Bridge Tokens',
-        'MLP Probe Methods: Dog Tokens',
-        'MLP Probe Methods: Bridge Tokens'
+        'Split-Half Probe Methods: Dog Tokens',
+        'Split-Half Probe Methods: Bridge Tokens'
     ]
 
     for ax, title in zip(axes.flatten(), titles):
@@ -211,13 +211,13 @@ def plot_probe_vs_traditional(data, output_dir, model_name="Model"):
         ax.grid(True, alpha=0.3)
         ax.legend(fontsize=8)
 
-    plt.suptitle(f'{model_name}: MLP Probe vs Traditional Steering Methods',
+    plt.suptitle(f'{model_name}: Split-Half Probe vs Traditional Steering Methods',
                  fontsize=14, fontweight='bold')
     plt.tight_layout()
 
-    output_path = output_dir / f'{model_name.lower().replace(" ", "_")}_probe_vs_traditional.png'
+    output_path = output_dir / f'{model_name.lower().replace(" ", "_")}_split_half_vs_traditional.png'
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
-    print(f"Saved probe comparison to {output_path}")
+    print(f"Saved split-half comparison to {output_path}")
     plt.close()
 
 def plot_best_performers(data, output_dir, model_name="Model"):

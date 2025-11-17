@@ -72,6 +72,8 @@ def plot_vector_norms(vector_norms, output_path):
             colors.append('coral')
         elif 'traditional' in name.lower():
             colors.append('green')
+        elif 'split' in name.lower() or 'splithalf' in name.lower():
+            colors.append('purple')
         else:
             colors.append('gray')
 
@@ -79,7 +81,7 @@ def plot_vector_norms(vector_norms, output_path):
 
     ax.set_xlabel('Steering Vector', fontsize=12, fontweight='bold')
     ax.set_ylabel('L2 Norm', fontsize=12, fontweight='bold')
-    ax.set_title('Steering Vector Norms (Qwen 2.5 7B)', fontsize=14, fontweight='bold')
+    ax.set_title('Steering Vector Norms', fontsize=14, fontweight='bold')
     ax.set_xticks(range(len(names)))
     ax.set_xticklabels(names, rotation=45, ha='right')
     ax.grid(axis='y', alpha=0.3, linestyle='--')
@@ -96,7 +98,8 @@ def plot_vector_norms(vector_norms, output_path):
     legend_elements = [
         Patch(facecolor='steelblue', alpha=0.7, label='Null-diff'),
         Patch(facecolor='coral', alpha=0.7, label='Combination'),
-        Patch(facecolor='green', alpha=0.7, label='Traditional')
+        Patch(facecolor='green', alpha=0.7, label='Traditional'),
+        Patch(facecolor='purple', alpha=0.7, label='Split-Half Probe')
     ]
     ax.legend(handles=legend_elements, loc='upper right')
 
