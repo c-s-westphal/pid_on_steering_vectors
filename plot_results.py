@@ -15,13 +15,27 @@ def parse_summary_file(summary_path):
 
     # Extract vector norms
     vector_norms = {}
-    norms_section = re.search(r'STEERING VECTORS CREATED.*?\n(.*?)\n\n', content, re.DOTALL)
+    # Extract from STEERING VECTORS CREATED section until next major section
+    norms_section = re.search(
+        r'STEERING VECTORS CREATED\n={80}\n(.*?)\n={80}',
+        content,
+        re.DOTALL
+    )
     if norms_section:
-        for line in norms_section.group(1).split('\n'):
+        section_text = norms_section.group(1)
+        for line in section_text.split('\n'):
+            # Match numbered vectors with norms (handles both traditional and split-half)
             match = re.search(r'\d+\.\s+(.*?):\s+norm = ([\d.]+)', line)
             if match:
                 name = match.group(1).strip()
                 norm = float(match.group(2))
+                vector_norms[name] = norm
+
+            # Also match indented directional norms (for dynamic MLP)
+            dir_match = re.search(r'^\s+(Dog|Bridge|Both) direction:\s+norm = ([\d.]+)', line)
+            if dir_match:
+                name = f"Split-Half MLP {dir_match.group(1)}"
+                norm = float(dir_match.group(2))
                 vector_norms[name] = norm
 
     # Extract scale testing results
