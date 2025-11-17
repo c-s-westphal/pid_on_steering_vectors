@@ -184,10 +184,10 @@ def run_for_model(model_key: str, output_base_dir: Path):
     )
 
     # ========================================================================
-    # MLP PROBE-BASED STEERING VECTORS
+    # PROBE TRAINING DATASET GENERATION
     # ========================================================================
     logger.info("\n" + "-" * 60)
-    logger.info("Training MLP probe for probe-based steering...")
+    logger.info("Generating probe training dataset...")
     logger.info("-" * 60)
 
     # Generate probe training dataset
@@ -227,8 +227,12 @@ def run_for_model(model_key: str, output_base_dir: Path):
     # TRAIN SPLIT-HALF BINARY PROBES
     # ========================================================================
     logger.info("\n" + "=" * 60)
-    logger.info("Training split-half binary probes...")
+    logger.info("SPLIT-HALF BINARY PROBE TRAINING")
     logger.info("=" * 60)
+    logger.info("Training binary linear probes on split neuron dimensions:")
+    logger.info(f"  - DOG probe:    neurons [0:{model_handler.hidden_size//2}]")
+    logger.info(f"  - BRIDGE probe: neurons [{model_handler.hidden_size//2}:{model_handler.hidden_size}]")
+    logger.info("")
 
     # Train binary probes on split activation dimensions
     split_half_trainer = SplitHalfProbeTrainer(
@@ -244,9 +248,10 @@ def run_for_model(model_key: str, output_base_dir: Path):
         batch_size=32
     )
 
+    logger.info("")
     logger.info(f"Split-half probe training complete!")
-    logger.info(f"  Dog probe accuracy: {dog_history['train_acc'][-1]:.2f}%")
-    logger.info(f"  Bridge probe accuracy: {bridge_history['train_acc'][-1]:.2f}%")
+    logger.info(f"  Dog probe final accuracy:    {dog_history['train_acc'][-1]:.2f}%")
+    logger.info(f"  Bridge probe final accuracy: {bridge_history['train_acc'][-1]:.2f}%")
 
     # ========================================================================
     # TRAIN MLP FOR 4-CLASS PREDICTION (for Method 2 weighting)
@@ -310,7 +315,9 @@ def run_for_model(model_key: str, output_base_dir: Path):
     # Get average probabilities from MLP on training set
     mlp_trainer.model.eval()
     with torch.no_grad():
-        logits = mlp_trainer.model(train_activations.to(mlp_trainer.device))
+        # Convert to float32 if MLP uses float32
+        act_for_mlp = train_activations.float() if mlp_trainer.use_float32 else train_activations
+        logits = mlp_trainer.model(act_for_mlp.to(mlp_trainer.device))
         probs = torch.softmax(logits, dim=1)
         avg_probs = probs.mean(dim=0)  # Average across samples
 

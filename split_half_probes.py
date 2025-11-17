@@ -137,7 +137,9 @@ class SplitHalfProbeTrainer:
 
         history = {'train_loss': [], 'train_acc': []}
 
-        logger.info(f"Training {concept_name} probe for {num_epochs} epochs...")
+        logger.info(f"Training {concept_name} binary probe for {num_epochs} epochs on {len(activations)} samples...")
+        logger.info(f"  Input dimension: {activations.shape[1]}")
+        logger.info(f"  Positive examples: {labels.sum().item():.0f}/{len(labels)}")
 
         for epoch in range(num_epochs):
             probe.train()
