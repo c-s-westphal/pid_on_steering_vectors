@@ -217,9 +217,14 @@ def plot_concept_success_rate(scale_results, output_path):
 
 
 def main():
-    # Find the most recent summary file
-    hpc_results_dir = Path("/Users/charleswestphal/Documents/UCL/pid_on_steering_vectors/hpc_results")
-    summary_files = list(hpc_results_dir.glob("**/summary.txt"))
+    # Find all summary files
+    base_dir = Path("/Users/charleswestphal/Documents/UCL/pid_on_steering_vectors")
+    hpc_results_dir = base_dir / "hpc_results"
+    outputs_dir = base_dir / "outputs"
+
+    summary_files = []
+    summary_files.extend(hpc_results_dir.glob("**/summary.txt"))
+    summary_files.extend(outputs_dir.glob("**/summary.txt"))
 
     if not summary_files:
         print("No summary.txt files found!")
@@ -229,15 +234,24 @@ def main():
     summary_file = max(summary_files, key=lambda p: p.stat().st_size)
     print(f"Using summary file: {summary_file}")
 
+    # Extract model name and timestamp from path
+    # Path structure: .../model_name/timestamp/summary.txt
+    parts = summary_file.parts
+    timestamp = parts[-2]  # e.g., '20251117_165944'
+    model_name = parts[-3]  # e.g., 'qwen-14b' or 'qwen-7b'
+
+    print(f"Model: {model_name}")
+    print(f"Timestamp: {timestamp}")
+
     # Parse data
     vector_norms, scale_results = parse_summary_file(summary_file)
 
     print(f"\nFound {len(vector_norms)} vectors")
     print(f"Found scale results for {len(scale_results)} vectors")
 
-    # Create plots directory
-    plots_dir = Path("/Users/charleswestphal/Documents/UCL/pid_on_steering_vectors/plots")
-    plots_dir.mkdir(exist_ok=True)
+    # Create model-specific plots directory
+    plots_dir = base_dir / "plots" / model_name / timestamp
+    plots_dir.mkdir(parents=True, exist_ok=True)
 
     # Generate plots
     plot_vector_norms(vector_norms, plots_dir / "vector_norms.png")
