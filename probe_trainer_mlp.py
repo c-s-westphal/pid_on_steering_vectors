@@ -47,16 +47,23 @@ class MLPProbe(nn.Module):
             num_classes: Number of classes (4: neither/dog/bridge/both)
         """
         super().__init__()
-        self.mlp = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),  # Add normalization for stability
-            nn.ReLU(),
-            nn.Dropout(0.1),
-            nn.Linear(hidden_dim, num_classes)
-        )
+        # Split into layers so we can access bottleneck
+        # No normalization to preserve L2 norms
+        self.input_layer = nn.Linear(input_dim, hidden_dim)
+        self.activation = nn.ReLU()
+        self.dropout = nn.Dropout(0.1)
+        self.output_layer = nn.Linear(hidden_dim, num_classes)
 
     def forward(self, x):
-        return self.mlp(x)
+        """Forward pass."""
+        # Pass through input layer (bottleneck)
+        bottleneck = self.input_layer(x)
+
+        # Continue through rest of network
+        x = self.activation(bottleneck)
+        x = self.dropout(x)
+        x = self.output_layer(x)
+        return x
 
     def get_final_layer_weights(self) -> torch.Tensor:
         """
@@ -66,9 +73,20 @@ class MLPProbe(nn.Module):
             Tensor of shape (num_classes, hidden_dim)
             Each row is the weight vector for that class
         """
-        # The final layer is the last Linear layer in the sequential
-        final_layer = self.mlp[-1]
-        return final_layer.weight.data.clone()
+        return self.output_layer.weight.data.clone()
+
+    def get_bottleneck_activation(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Get bottleneck activation for given input.
+
+        Args:
+            x: Input tensor of shape (batch_size, input_dim) or (input_dim,)
+
+        Returns:
+            Bottleneck activation of shape (batch_size, hidden_dim) or (hidden_dim,)
+        """
+        with torch.no_grad():
+            return self.input_layer(x)
 
 
 class MLPProbeTrainer:
@@ -242,22 +260,87 @@ class MLPProbeTrainer:
         logger.info(f"Best validation loss: {best_val_loss:.4f}")
         return history
 
-    def get_steering_vectors(self) -> torch.Tensor:
+    def get_steering_vectors(self, method: str = 'final_layer') -> torch.Tensor:
         """
-        Extract steering vectors from trained probe's final layer.
+        Extract steering vectors from trained probe.
+
+        Args:
+            method: 'final_layer' for final layer weights (default for backwards compatibility)
 
         Returns:
             Tensor of shape (num_classes, hidden_dim)
         """
-        return self.model.get_final_layer_weights()
+        if method == 'final_layer':
+            return self.model.get_final_layer_weights()
+        else:
+            raise ValueError(f"Unknown method: {method}. Use 'final_layer' or call get_bottleneck_steering_vectors() directly.")
+
+    def get_bottleneck_steering_vectors(
+        self,
+        activations: torch.Tensor,
+        labels: torch.Tensor,
+        aggregation: str = 'mean'
+    ) -> torch.Tensor:
+        """
+        Extract steering vectors from bottleneck activations.
+
+        This computes the bottleneck layer output for each sample, then aggregates
+        by class to get one steering vector per class.
+
+        Args:
+            activations: Input activations of shape (num_samples, input_dim)
+            labels: Labels for each sample of shape (num_samples,)
+            aggregation: How to aggregate activations per class ('mean' or 'median')
+
+        Returns:
+            Tensor of shape (num_classes, hidden_dim)
+            Each row is the aggregated bottleneck activation for that class
+        """
+        self.model.eval()
+
+        # Convert to float32 if needed
+        if self.use_float32:
+            activations = activations.float()
+
+        # Get bottleneck activations for all samples
+        with torch.no_grad():
+            activations = activations.to(self.device)
+            bottleneck_acts = self.model.get_bottleneck_activation(activations)
+
+        # Get unique classes
+        unique_labels = torch.unique(labels)
+        num_classes = len(unique_labels)
+        hidden_dim = bottleneck_acts.shape[1]
+
+        # Aggregate by class
+        steering_vectors = torch.zeros(num_classes, hidden_dim, device=self.device)
+
+        for i, label in enumerate(sorted(unique_labels.tolist())):
+            mask = labels == label
+            class_activations = bottleneck_acts[mask]
+
+            if aggregation == 'mean':
+                steering_vectors[i] = class_activations.mean(dim=0)
+            elif aggregation == 'median':
+                steering_vectors[i] = class_activations.median(dim=0).values
+            else:
+                raise ValueError(f"Unknown aggregation method: {aggregation}")
+
+        logger.info(f"Extracted bottleneck steering vectors using {aggregation} aggregation")
+        logger.info(f"  Shape: {steering_vectors.shape}")
+        for i in range(num_classes):
+            norm = torch.norm(steering_vectors[i]).item()
+            logger.info(f"  Class {i}: L2 norm = {norm:.4f}")
+
+        return steering_vectors
 
     def save(self, path: str):
         """Save trained probe."""
         torch.save({
             'model_state_dict': self.model.state_dict(),
-            'input_dim': self.model.mlp[0].in_features,
-            'hidden_dim': self.model.mlp[0].out_features,
-            'num_classes': self.model.mlp[-1].out_features
+            'input_dim': self.model.input_layer.in_features,
+            'hidden_dim': self.model.input_layer.out_features,
+            'num_classes': self.model.output_layer.out_features
         }, path)
         logger.info(f"Saved probe to {path}")
 

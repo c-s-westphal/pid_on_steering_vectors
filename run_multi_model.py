@@ -245,11 +245,17 @@ def run_for_model(model_key: str, output_base_dir: Path):
     logger.info(f"  Final train accuracy: {probe_history['train_acc'][-1]:.2f}%")
     logger.info(f"  Final val accuracy: {probe_history['val_acc'][-1]:.2f}%")
 
-    # Extract probe-based steering vectors
+    # Extract probe-based steering vectors (method 1: final layer weights)
     probe_weights = probe_trainer.get_steering_vectors()
     logger.info(f"Extracted probe weights: {probe_weights.shape}")
 
-    # Create probe-based steering vectors
+    # Extract bottleneck-based steering vectors (method 2: bottleneck activations)
+    bottleneck_vectors = probe_trainer.get_bottleneck_steering_vectors(
+        train_activations, train_labels, aggregation='mean'
+    )
+    logger.info(f"Extracted bottleneck vectors: {bottleneck_vectors.shape}")
+
+    # Create probe-based steering vectors (final layer method)
     probe_dog = vector_computer.from_linear_probe(
         probe_weights, class_idx=1, layer_idx=target_layer, concept="probe_dog"
     )
@@ -272,11 +278,40 @@ def run_for_model(model_key: str, output_base_dir: Path):
         layer_idx=target_layer, concept="probe_both_vs_neither"
     )
 
+    # Create bottleneck-based steering vectors
+    bottleneck_dog = vector_computer.from_linear_probe(
+        bottleneck_vectors, class_idx=1, layer_idx=target_layer, concept="bottleneck_dog"
+    )
+    bottleneck_bridge = vector_computer.from_linear_probe(
+        bottleneck_vectors, class_idx=2, layer_idx=target_layer, concept="bottleneck_bridge"
+    )
+    bottleneck_both = vector_computer.from_linear_probe(
+        bottleneck_vectors, class_idx=3, layer_idx=target_layer, concept="bottleneck_both"
+    )
+    bottleneck_dog_vs_neither = vector_computer.from_probe_difference(
+        bottleneck_vectors, class_a_idx=1, class_b_idx=0,
+        layer_idx=target_layer, concept="bottleneck_dog_vs_neither"
+    )
+    bottleneck_bridge_vs_neither = vector_computer.from_probe_difference(
+        bottleneck_vectors, class_a_idx=2, class_b_idx=0,
+        layer_idx=target_layer, concept="bottleneck_bridge_vs_neither"
+    )
+    bottleneck_both_vs_neither = vector_computer.from_probe_difference(
+        bottleneck_vectors, class_a_idx=3, class_b_idx=0,
+        layer_idx=target_layer, concept="bottleneck_both_vs_neither"
+    )
+
     logger.info("Probe-based steering vectors created (original scale):")
     logger.info(f"  Dog:             norm = {torch.norm(probe_dog.vector).item():.4f}")
     logger.info(f"  Bridge:          norm = {torch.norm(probe_bridge.vector).item():.4f}")
     logger.info(f"  Both:            norm = {torch.norm(probe_both.vector).item():.4f}")
     logger.info(f"  Dog vs neither:  norm = {torch.norm(probe_dog_vs_neither.vector).item():.4f}")
+
+    logger.info("\nBottleneck-based steering vectors created (original scale):")
+    logger.info(f"  Dog:             norm = {torch.norm(bottleneck_dog.vector).item():.4f}")
+    logger.info(f"  Bridge:          norm = {torch.norm(bottleneck_bridge.vector).item():.4f}")
+    logger.info(f"  Both:            norm = {torch.norm(bottleneck_both.vector).item():.4f}")
+    logger.info(f"  Dog vs neither:  norm = {torch.norm(bottleneck_dog_vs_neither.vector).item():.4f}")
 
     # ========================================================================
     # RESCALE PROBE VECTORS TO MATCH TRADITIONAL VECTOR MAGNITUDES
@@ -297,7 +332,7 @@ def run_for_model(model_key: str, output_base_dir: Path):
     ]
     avg_traditional_norm = sum(traditional_norms) / len(traditional_norms)
 
-    # Calculate average norm of probe vectors
+    # Calculate average norm of probe vectors (final layer method)
     probe_norms = [
         torch.norm(probe_dog.vector).item(),
         torch.norm(probe_bridge.vector).item(),
@@ -308,25 +343,54 @@ def run_for_model(model_key: str, output_base_dir: Path):
     ]
     avg_probe_norm = sum(probe_norms) / len(probe_norms)
 
-    # Calculate rescaling factor
-    rescale_factor = avg_traditional_norm / avg_probe_norm
+    # Calculate average norm of bottleneck vectors
+    bottleneck_norms = [
+        torch.norm(bottleneck_dog.vector).item(),
+        torch.norm(bottleneck_bridge.vector).item(),
+        torch.norm(bottleneck_both.vector).item(),
+        torch.norm(bottleneck_dog_vs_neither.vector).item(),
+        torch.norm(bottleneck_bridge_vs_neither.vector).item(),
+        torch.norm(bottleneck_both_vs_neither.vector).item(),
+    ]
+    avg_bottleneck_norm = sum(bottleneck_norms) / len(bottleneck_norms)
+
+    # Calculate rescaling factors
+    probe_rescale_factor = avg_traditional_norm / avg_probe_norm
+    bottleneck_rescale_factor = avg_traditional_norm / avg_bottleneck_norm
+
     logger.info(f"  Average traditional norm: {avg_traditional_norm:.2f}")
     logger.info(f"  Average probe norm: {avg_probe_norm:.2f}")
-    logger.info(f"  Rescaling factor: {rescale_factor:.2f}x")
+    logger.info(f"  Probe rescaling factor: {probe_rescale_factor:.2f}x")
+    logger.info(f"  Average bottleneck norm: {avg_bottleneck_norm:.2f}")
+    logger.info(f"  Bottleneck rescaling factor: {bottleneck_rescale_factor:.2f}x")
 
-    # Rescale probe vectors
-    probe_dog.vector = probe_dog.vector * rescale_factor
-    probe_bridge.vector = probe_bridge.vector * rescale_factor
-    probe_both.vector = probe_both.vector * rescale_factor
-    probe_dog_vs_neither.vector = probe_dog_vs_neither.vector * rescale_factor
-    probe_bridge_vs_neither.vector = probe_bridge_vs_neither.vector * rescale_factor
-    probe_both_vs_neither.vector = probe_both_vs_neither.vector * rescale_factor
+    # Rescale probe vectors (final layer method)
+    probe_dog.vector = probe_dog.vector * probe_rescale_factor
+    probe_bridge.vector = probe_bridge.vector * probe_rescale_factor
+    probe_both.vector = probe_both.vector * probe_rescale_factor
+    probe_dog_vs_neither.vector = probe_dog_vs_neither.vector * probe_rescale_factor
+    probe_bridge_vs_neither.vector = probe_bridge_vs_neither.vector * probe_rescale_factor
+    probe_both_vs_neither.vector = probe_both_vs_neither.vector * probe_rescale_factor
+
+    # Rescale bottleneck vectors
+    bottleneck_dog.vector = bottleneck_dog.vector * bottleneck_rescale_factor
+    bottleneck_bridge.vector = bottleneck_bridge.vector * bottleneck_rescale_factor
+    bottleneck_both.vector = bottleneck_both.vector * bottleneck_rescale_factor
+    bottleneck_dog_vs_neither.vector = bottleneck_dog_vs_neither.vector * bottleneck_rescale_factor
+    bottleneck_bridge_vs_neither.vector = bottleneck_bridge_vs_neither.vector * bottleneck_rescale_factor
+    bottleneck_both_vs_neither.vector = bottleneck_both_vs_neither.vector * bottleneck_rescale_factor
 
     logger.info("\nProbe-based steering vectors (after rescaling):")
     logger.info(f"  Dog:             norm = {torch.norm(probe_dog.vector).item():.4f}")
     logger.info(f"  Bridge:          norm = {torch.norm(probe_bridge.vector).item():.4f}")
     logger.info(f"  Both:            norm = {torch.norm(probe_both.vector).item():.4f}")
     logger.info(f"  Dog vs neither:  norm = {torch.norm(probe_dog_vs_neither.vector).item():.4f}")
+
+    logger.info("\nBottleneck-based steering vectors (after rescaling):")
+    logger.info(f"  Dog:             norm = {torch.norm(bottleneck_dog.vector).item():.4f}")
+    logger.info(f"  Bridge:          norm = {torch.norm(bottleneck_bridge.vector).item():.4f}")
+    logger.info(f"  Both:            norm = {torch.norm(bottleneck_both.vector).item():.4f}")
+    logger.info(f"  Dog vs neither:  norm = {torch.norm(bottleneck_dog_vs_neither.vector).item():.4f}")
 
     # Save all vectors
     logger.info("\n" + "-" * 60)
@@ -341,13 +405,21 @@ def run_for_model(model_key: str, output_base_dir: Path):
         vec.save(vectors_dir / f"dogs_bridge_{name}.pt")
     traditional_diff.save(vectors_dir / "traditional_diff.pt")
 
-    # Save probe vectors
+    # Save probe vectors (final layer method)
     probe_dog.save(vectors_dir / "probe_dog.pt")
     probe_bridge.save(vectors_dir / "probe_bridge.pt")
     probe_both.save(vectors_dir / "probe_both.pt")
     probe_dog_vs_neither.save(vectors_dir / "probe_dog_vs_neither.pt")
     probe_bridge_vs_neither.save(vectors_dir / "probe_bridge_vs_neither.pt")
     probe_both_vs_neither.save(vectors_dir / "probe_both_vs_neither.pt")
+
+    # Save bottleneck vectors
+    bottleneck_dog.save(vectors_dir / "bottleneck_dog.pt")
+    bottleneck_bridge.save(vectors_dir / "bottleneck_bridge.pt")
+    bottleneck_both.save(vectors_dir / "bottleneck_both.pt")
+    bottleneck_dog_vs_neither.save(vectors_dir / "bottleneck_dog_vs_neither.pt")
+    bottleneck_bridge_vs_neither.save(vectors_dir / "bottleneck_bridge_vs_neither.pt")
+    bottleneck_both_vs_neither.save(vectors_dir / "bottleneck_both_vs_neither.pt")
 
     # Save probe model and history
     probe_dir = model_output_dir / "probe"
@@ -356,7 +428,7 @@ def run_for_model(model_key: str, output_base_dir: Path):
     with open(probe_dir / "training_history.json", 'w') as f:
         json.dump(probe_history, f, indent=2)
 
-    logger.info(f"Saved {2 + len(combinations) + 1 + 6} vectors to {vectors_dir}")
+    logger.info(f"Saved {2 + len(combinations) + 1 + 6 + 6} vectors to {vectors_dir}")
     logger.info(f"Saved probe model and history to {probe_dir}")
 
     # Test multiple scales for ALL combination methods
@@ -383,6 +455,12 @@ def run_for_model(model_key: str, output_base_dir: Path):
         ("ProbeDogVsNeither", probe_dog_vs_neither),
         ("ProbeBridgeVsNeither", probe_bridge_vs_neither),
         ("ProbeBothVsNeither", probe_both_vs_neither),
+        ("BottleneckDog", bottleneck_dog),
+        ("BottleneckBridge", bottleneck_bridge),
+        ("BottleneckBoth", bottleneck_both),
+        ("BottleneckDogVsNeither", bottleneck_dog_vs_neither),
+        ("BottleneckBridgeVsNeither", bottleneck_bridge_vs_neither),
+        ("BottleneckBothVsNeither", bottleneck_both_vs_neither),
     ]
 
     logger.info(f"Testing {len(all_vectors)} vectors at {len(test_scales)} scales each")
@@ -442,20 +520,37 @@ def run_for_model(model_key: str, output_base_dir: Path):
             }
 
             # Check for garbled output (multiple heuristics)
-            has_control_chars = any(ord(c) < 32 and c not in '\n\t' for c in text[:50])
+            sample = text[:200]  # Check more text
 
-            # Check for repetitive punctuation patterns (sign of collapse)
-            has_repetitive_punct = bool(re.search(r'[.,;:]{3,}', text[:100]))
+            # 1. Control characters
+            has_control_chars = any(ord(c) < 32 and c not in '\n\t' for c in sample)
 
-            # Check for very short repetitive words
-            words = text[:100].split()
+            # 2. Repetitive punctuation patterns (3+ consecutive OR high density)
+            has_consecutive_punct = bool(re.search(r'[.,;:]{3,}', sample))
+            # High punctuation density: >40% of non-whitespace chars are punctuation
+            non_ws = ''.join(c for c in sample if not c.isspace())
+            punct_ratio = sum(1 for c in non_ws if c in '.,;:!?。，．') / max(len(non_ws), 1)
+            has_high_punct = punct_ratio > 0.4
+
+            # 3. Excessive whitespace (>50% of first 100 chars)
+            ws_ratio = sum(1 for c in text[:100] if c.isspace()) / 100.0
+            has_excess_whitespace = ws_ratio > 0.5
+
+            # 4. Very short repetitive words
+            words = sample.split()
             if len(words) > 5:
                 word_set_ratio = len(set(words)) / len(words)
                 is_repetitive = word_set_ratio < 0.3  # Less than 30% unique words
             else:
                 is_repetitive = False
 
-            is_garbled = has_control_chars or has_repetitive_punct or is_repetitive
+            # 5. Too many single-character words (common in collapse)
+            single_char_words = sum(1 for w in words if len(w) == 1)
+            has_many_singles = len(words) > 5 and (single_char_words / len(words)) > 0.4
+
+            is_garbled = (has_control_chars or has_consecutive_punct or
+                         has_high_punct or has_excess_whitespace or
+                         is_repetitive or has_many_singles)
 
             concept_mentioned = (
                 'dog' in text.lower() or
@@ -568,7 +663,27 @@ def run_for_model(model_key: str, output_base_dir: Path):
             f.write(f"\n{vec_name} vector:\n")
             f.write("-" * 60 + "\n")
             for scale, text in scales.items():
-                is_garbled = any(ord(c) < 32 and c not in '\n\t' for c in text[:50])
+                # Use same improved garbling detection
+                sample = text[:200]
+                has_control_chars = any(ord(c) < 32 and c not in '\n\t' for c in sample)
+                has_consecutive_punct = bool(re.search(r'[.,;:]{3,}', sample))
+                non_ws = ''.join(c for c in sample if not c.isspace())
+                punct_ratio = sum(1 for c in non_ws if c in '.,;:!?。，．') / max(len(non_ws), 1)
+                has_high_punct = punct_ratio > 0.4
+                ws_ratio = sum(1 for c in text[:100] if c.isspace()) / 100.0
+                has_excess_whitespace = ws_ratio > 0.5
+                words = sample.split()
+                if len(words) > 5:
+                    word_set_ratio = len(set(words)) / len(words)
+                    is_repetitive = word_set_ratio < 0.3
+                    single_char_words = sum(1 for w in words if len(w) == 1)
+                    has_many_singles = (single_char_words / len(words)) > 0.4
+                else:
+                    is_repetitive = False
+                    has_many_singles = False
+                is_garbled = (has_control_chars or has_consecutive_punct or
+                            has_high_punct or has_excess_whitespace or
+                            is_repetitive or has_many_singles)
                 concept = 'dog' in text.lower() or 'bridge' in text.lower()
                 status = "[GARBLED]" if is_garbled else "[CONCEPT]" if concept else "[NEUTRAL]"
                 f.write(f"Scale {scale:.1f} {status:12s}: {text[:120]}...\n")
