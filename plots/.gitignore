@@ -1,0 +1,7 @@
+# Ignore all plots (they are generated from results)
+*.png
+*.pdf
+*.jpg
+
+# But keep the .gitignore
+!.gitignore
