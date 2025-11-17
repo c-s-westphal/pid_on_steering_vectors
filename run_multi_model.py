@@ -24,6 +24,7 @@ from data import DatasetBuilder
 from evaluation import SteeringEvaluator
 from probe_dataset import ProbeDatasetGenerator
 from probe_trainer_mlp import MLPProbeTrainer
+from split_half_probes import SplitHalfProbeTrainer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -222,9 +223,39 @@ def run_for_model(model_key: str, output_base_dir: Path):
     val_activations = probe_activations_tensor[val_indices]
     val_labels = probe_labels_tensor[val_indices]
 
-    # Train MLP probe
-    logger.info(f"Training MLP probe on {len(train_activations)} samples...")
-    probe_trainer = MLPProbeTrainer(
+    # ========================================================================
+    # TRAIN SPLIT-HALF BINARY PROBES
+    # ========================================================================
+    logger.info("\n" + "=" * 60)
+    logger.info("Training split-half binary probes...")
+    logger.info("=" * 60)
+
+    # Train binary probes on split activation dimensions
+    split_half_trainer = SplitHalfProbeTrainer(
+        full_dim=model_handler.hidden_size,
+        learning_rate=1e-3,
+        use_float32=True
+    )
+
+    dog_history, bridge_history = split_half_trainer.train(
+        train_activations=train_activations,
+        train_labels=train_labels,
+        num_epochs=100,
+        batch_size=32
+    )
+
+    logger.info(f"Split-half probe training complete!")
+    logger.info(f"  Dog probe accuracy: {dog_history['train_acc'][-1]:.2f}%")
+    logger.info(f"  Bridge probe accuracy: {bridge_history['train_acc'][-1]:.2f}%")
+
+    # ========================================================================
+    # TRAIN MLP FOR 4-CLASS PREDICTION (for Method 2 weighting)
+    # ========================================================================
+    logger.info("\n" + "=" * 60)
+    logger.info("Training MLP for probability-based weighting...")
+    logger.info("=" * 60)
+
+    mlp_trainer = MLPProbeTrainer(
         input_dim=model_handler.hidden_size,
         hidden_dim=model_handler.hidden_size,
         num_classes=4,
@@ -232,7 +263,7 @@ def run_for_model(model_key: str, output_base_dir: Path):
         use_float32=True
     )
 
-    probe_history = probe_trainer.train(
+    mlp_history = mlp_trainer.train(
         train_activations=train_activations,
         train_labels=train_labels,
         val_activations=val_activations,
@@ -241,82 +272,80 @@ def run_for_model(model_key: str, output_base_dir: Path):
         batch_size=32
     )
 
-    logger.info(f"Probe training complete!")
-    logger.info(f"  Final train accuracy: {probe_history['train_acc'][-1]:.2f}%")
-    logger.info(f"  Final val accuracy: {probe_history['val_acc'][-1]:.2f}%")
-
-    # Extract probe-based steering vectors (method 1: final layer weights)
-    probe_weights = probe_trainer.get_steering_vectors()
-    logger.info(f"Extracted probe weights: {probe_weights.shape}")
-
-    # Extract bottleneck-based steering vectors (method 2: bottleneck activations)
-    bottleneck_vectors = probe_trainer.get_bottleneck_steering_vectors(
-        train_activations, train_labels, aggregation='mean'
-    )
-    logger.info(f"Extracted bottleneck vectors: {bottleneck_vectors.shape}")
-
-    # Create probe-based steering vectors (final layer method)
-    probe_dog = vector_computer.from_linear_probe(
-        probe_weights, class_idx=1, layer_idx=target_layer, concept="probe_dog"
-    )
-    probe_bridge = vector_computer.from_linear_probe(
-        probe_weights, class_idx=2, layer_idx=target_layer, concept="probe_bridge"
-    )
-    probe_both = vector_computer.from_linear_probe(
-        probe_weights, class_idx=3, layer_idx=target_layer, concept="probe_both"
-    )
-    probe_dog_vs_neither = vector_computer.from_probe_difference(
-        probe_weights, class_a_idx=1, class_b_idx=0,
-        layer_idx=target_layer, concept="probe_dog_vs_neither"
-    )
-    probe_bridge_vs_neither = vector_computer.from_probe_difference(
-        probe_weights, class_a_idx=2, class_b_idx=0,
-        layer_idx=target_layer, concept="probe_bridge_vs_neither"
-    )
-    probe_both_vs_neither = vector_computer.from_probe_difference(
-        probe_weights, class_a_idx=3, class_b_idx=0,
-        layer_idx=target_layer, concept="probe_both_vs_neither"
-    )
-
-    # Create bottleneck-based steering vectors
-    bottleneck_dog = vector_computer.from_linear_probe(
-        bottleneck_vectors, class_idx=1, layer_idx=target_layer, concept="bottleneck_dog"
-    )
-    bottleneck_bridge = vector_computer.from_linear_probe(
-        bottleneck_vectors, class_idx=2, layer_idx=target_layer, concept="bottleneck_bridge"
-    )
-    bottleneck_both = vector_computer.from_linear_probe(
-        bottleneck_vectors, class_idx=3, layer_idx=target_layer, concept="bottleneck_both"
-    )
-    bottleneck_dog_vs_neither = vector_computer.from_probe_difference(
-        bottleneck_vectors, class_a_idx=1, class_b_idx=0,
-        layer_idx=target_layer, concept="bottleneck_dog_vs_neither"
-    )
-    bottleneck_bridge_vs_neither = vector_computer.from_probe_difference(
-        bottleneck_vectors, class_a_idx=2, class_b_idx=0,
-        layer_idx=target_layer, concept="bottleneck_bridge_vs_neither"
-    )
-    bottleneck_both_vs_neither = vector_computer.from_probe_difference(
-        bottleneck_vectors, class_a_idx=3, class_b_idx=0,
-        layer_idx=target_layer, concept="bottleneck_both_vs_neither"
-    )
-
-    logger.info("Probe-based steering vectors created (original scale):")
-    logger.info(f"  Dog:             norm = {torch.norm(probe_dog.vector).item():.4f}")
-    logger.info(f"  Bridge:          norm = {torch.norm(probe_bridge.vector).item():.4f}")
-    logger.info(f"  Both:            norm = {torch.norm(probe_both.vector).item():.4f}")
-    logger.info(f"  Dog vs neither:  norm = {torch.norm(probe_dog_vs_neither.vector).item():.4f}")
-
-    logger.info("\nBottleneck-based steering vectors created (original scale):")
-    logger.info(f"  Dog:             norm = {torch.norm(bottleneck_dog.vector).item():.4f}")
-    logger.info(f"  Bridge:          norm = {torch.norm(bottleneck_bridge.vector).item():.4f}")
-    logger.info(f"  Both:            norm = {torch.norm(bottleneck_both.vector).item():.4f}")
-    logger.info(f"  Dog vs neither:  norm = {torch.norm(bottleneck_dog_vs_neither.vector).item():.4f}")
+    logger.info(f"MLP training complete!")
+    logger.info(f"  Final train accuracy: {mlp_history['train_acc'][-1]:.2f}%")
+    logger.info(f"  Final val accuracy: {mlp_history['val_acc'][-1]:.2f}%")
 
     # ========================================================================
-    # RESCALE PROBE VECTORS TO MATCH TRADITIONAL VECTOR MAGNITUDES
+    # EXTRACT STEERING VECTORS - METHOD 1: CONCATENATION
     # ========================================================================
-    logger.info("\nRescaling probe vectors to match traditional vector scale...")
+    logger.info("\n" + "=" * 60)
+    logger.info("Method 1: Concatenated split-half probes...")
+    logger.info("=" * 60)
+
+    # Get concatenated vector (dog weights in first half, bridge weights in second half)
+    concat_vector_tensor = split_half_trainer.get_concatenated_vector()
+
+    # Wrap in SteeringVector object
+    split_half_concat = SteeringVector(
+        vector=concat_vector_tensor,
+        layer_idx=target_layer,
+        concept="split_half_concat"
+    )
+
+    logger.info(f"Concatenated vector norm: {torch.norm(split_half_concat.vector).item():.4f}")
+
+    # ========================================================================
+    # EXTRACT STEERING VECTORS - METHOD 2: MLP-WEIGHTED
+    # ========================================================================
+    logger.info("\n" + "=" * 60)
+    logger.info("Method 2: MLP probability-weighted combination...")
+    logger.info("=" * 60)
+
+    # Get individual directions from split-half probes
+    dog_direction = split_half_trainer.get_dog_direction()
+    bridge_direction = split_half_trainer.get_bridge_direction()
+    both_direction = dog_direction + bridge_direction  # Combine for "both" concept
+
+    # Get average probabilities from MLP on training set
+    mlp_trainer.model.eval()
+    with torch.no_grad():
+        logits = mlp_trainer.model(train_activations.to(mlp_trainer.device))
+        probs = torch.softmax(logits, dim=1)
+        avg_probs = probs.mean(dim=0)  # Average across samples
+
+    p_neither = avg_probs[0].item()
+    p_dog = avg_probs[1].item()
+    p_bridge = avg_probs[2].item()
+    p_both = avg_probs[3].item()
+
+    logger.info(f"Average MLP probabilities:")
+    logger.info(f"  p(neither) = {p_neither:.4f}")
+    logger.info(f"  p(dog)     = {p_dog:.4f}")
+    logger.info(f"  p(bridge)  = {p_bridge:.4f}")
+    logger.info(f"  p(both)    = {p_both:.4f}")
+
+    # Create weighted combination: p(dog)*dog + p(bridge)*bridge + p(both)*both
+    mlp_weighted_vector = (
+        p_dog * dog_direction +
+        p_bridge * bridge_direction +
+        p_both * both_direction
+    )
+
+    split_half_mlp_weighted = SteeringVector(
+        vector=mlp_weighted_vector,
+        layer_idx=target_layer,
+        concept="split_half_mlp_weighted"
+    )
+
+    logger.info(f"MLP-weighted vector norm: {torch.norm(split_half_mlp_weighted.vector).item():.4f}")
+
+    # ========================================================================
+    # RESCALE SPLIT-HALF VECTORS TO MATCH TRADITIONAL VECTOR MAGNITUDES
+    # ========================================================================
+    logger.info("\n" + "=" * 60)
+    logger.info("Rescaling split-half vectors to match traditional vector scale...")
+    logger.info("=" * 60)
 
     # Calculate average norm of traditional vectors
     traditional_norms = [
@@ -332,65 +361,27 @@ def run_for_model(model_key: str, output_base_dir: Path):
     ]
     avg_traditional_norm = sum(traditional_norms) / len(traditional_norms)
 
-    # Calculate average norm of probe vectors (final layer method)
-    probe_norms = [
-        torch.norm(probe_dog.vector).item(),
-        torch.norm(probe_bridge.vector).item(),
-        torch.norm(probe_both.vector).item(),
-        torch.norm(probe_dog_vs_neither.vector).item(),
-        torch.norm(probe_bridge_vs_neither.vector).item(),
-        torch.norm(probe_both_vs_neither.vector).item(),
+    # Calculate norms of split-half vectors
+    split_half_norms = [
+        torch.norm(split_half_concat.vector).item(),
+        torch.norm(split_half_mlp_weighted.vector).item(),
     ]
-    avg_probe_norm = sum(probe_norms) / len(probe_norms)
+    avg_split_half_norm = sum(split_half_norms) / len(split_half_norms)
 
-    # Calculate average norm of bottleneck vectors
-    bottleneck_norms = [
-        torch.norm(bottleneck_dog.vector).item(),
-        torch.norm(bottleneck_bridge.vector).item(),
-        torch.norm(bottleneck_both.vector).item(),
-        torch.norm(bottleneck_dog_vs_neither.vector).item(),
-        torch.norm(bottleneck_bridge_vs_neither.vector).item(),
-        torch.norm(bottleneck_both_vs_neither.vector).item(),
-    ]
-    avg_bottleneck_norm = sum(bottleneck_norms) / len(bottleneck_norms)
-
-    # Calculate rescaling factors
-    probe_rescale_factor = avg_traditional_norm / avg_probe_norm
-    bottleneck_rescale_factor = avg_traditional_norm / avg_bottleneck_norm
+    # Calculate rescaling factor
+    split_half_rescale_factor = avg_traditional_norm / avg_split_half_norm
 
     logger.info(f"  Average traditional norm: {avg_traditional_norm:.2f}")
-    logger.info(f"  Average probe norm: {avg_probe_norm:.2f}")
-    logger.info(f"  Probe rescaling factor: {probe_rescale_factor:.2f}x")
-    logger.info(f"  Average bottleneck norm: {avg_bottleneck_norm:.2f}")
-    logger.info(f"  Bottleneck rescaling factor: {bottleneck_rescale_factor:.2f}x")
+    logger.info(f"  Average split-half norm: {avg_split_half_norm:.2f}")
+    logger.info(f"  Rescaling factor: {split_half_rescale_factor:.2f}x")
 
-    # Rescale probe vectors (final layer method)
-    probe_dog.vector = probe_dog.vector * probe_rescale_factor
-    probe_bridge.vector = probe_bridge.vector * probe_rescale_factor
-    probe_both.vector = probe_both.vector * probe_rescale_factor
-    probe_dog_vs_neither.vector = probe_dog_vs_neither.vector * probe_rescale_factor
-    probe_bridge_vs_neither.vector = probe_bridge_vs_neither.vector * probe_rescale_factor
-    probe_both_vs_neither.vector = probe_both_vs_neither.vector * probe_rescale_factor
+    # Rescale split-half vectors
+    split_half_concat.vector = split_half_concat.vector * split_half_rescale_factor
+    split_half_mlp_weighted.vector = split_half_mlp_weighted.vector * split_half_rescale_factor
 
-    # Rescale bottleneck vectors
-    bottleneck_dog.vector = bottleneck_dog.vector * bottleneck_rescale_factor
-    bottleneck_bridge.vector = bottleneck_bridge.vector * bottleneck_rescale_factor
-    bottleneck_both.vector = bottleneck_both.vector * bottleneck_rescale_factor
-    bottleneck_dog_vs_neither.vector = bottleneck_dog_vs_neither.vector * bottleneck_rescale_factor
-    bottleneck_bridge_vs_neither.vector = bottleneck_bridge_vs_neither.vector * bottleneck_rescale_factor
-    bottleneck_both_vs_neither.vector = bottleneck_both_vs_neither.vector * bottleneck_rescale_factor
-
-    logger.info("\nProbe-based steering vectors (after rescaling):")
-    logger.info(f"  Dog:             norm = {torch.norm(probe_dog.vector).item():.4f}")
-    logger.info(f"  Bridge:          norm = {torch.norm(probe_bridge.vector).item():.4f}")
-    logger.info(f"  Both:            norm = {torch.norm(probe_both.vector).item():.4f}")
-    logger.info(f"  Dog vs neither:  norm = {torch.norm(probe_dog_vs_neither.vector).item():.4f}")
-
-    logger.info("\nBottleneck-based steering vectors (after rescaling):")
-    logger.info(f"  Dog:             norm = {torch.norm(bottleneck_dog.vector).item():.4f}")
-    logger.info(f"  Bridge:          norm = {torch.norm(bottleneck_bridge.vector).item():.4f}")
-    logger.info(f"  Both:            norm = {torch.norm(bottleneck_both.vector).item():.4f}")
-    logger.info(f"  Dog vs neither:  norm = {torch.norm(bottleneck_dog_vs_neither.vector).item():.4f}")
+    logger.info("\nSplit-half steering vectors (after rescaling):")
+    logger.info(f"  Concatenated:    norm = {torch.norm(split_half_concat.vector).item():.4f}")
+    logger.info(f"  MLP-weighted:    norm = {torch.norm(split_half_mlp_weighted.vector).item():.4f}")
 
     # Save all vectors
     logger.info("\n" + "-" * 60)
@@ -405,31 +396,26 @@ def run_for_model(model_key: str, output_base_dir: Path):
         vec.save(vectors_dir / f"dogs_bridge_{name}.pt")
     traditional_diff.save(vectors_dir / "traditional_diff.pt")
 
-    # Save probe vectors (final layer method)
-    probe_dog.save(vectors_dir / "probe_dog.pt")
-    probe_bridge.save(vectors_dir / "probe_bridge.pt")
-    probe_both.save(vectors_dir / "probe_both.pt")
-    probe_dog_vs_neither.save(vectors_dir / "probe_dog_vs_neither.pt")
-    probe_bridge_vs_neither.save(vectors_dir / "probe_bridge_vs_neither.pt")
-    probe_both_vs_neither.save(vectors_dir / "probe_both_vs_neither.pt")
+    # Save split-half vectors
+    split_half_concat.save(vectors_dir / "split_half_concat.pt")
+    split_half_mlp_weighted.save(vectors_dir / "split_half_mlp_weighted.pt")
 
-    # Save bottleneck vectors
-    bottleneck_dog.save(vectors_dir / "bottleneck_dog.pt")
-    bottleneck_bridge.save(vectors_dir / "bottleneck_bridge.pt")
-    bottleneck_both.save(vectors_dir / "bottleneck_both.pt")
-    bottleneck_dog_vs_neither.save(vectors_dir / "bottleneck_dog_vs_neither.pt")
-    bottleneck_bridge_vs_neither.save(vectors_dir / "bottleneck_bridge_vs_neither.pt")
-    bottleneck_both_vs_neither.save(vectors_dir / "bottleneck_both_vs_neither.pt")
-
-    # Save probe model and history
+    # Save split-half probe models and history
     probe_dir = model_output_dir / "probe"
     probe_dir.mkdir(parents=True, exist_ok=True)
-    probe_trainer.save(probe_dir / "mlp_probe.pt")
-    with open(probe_dir / "training_history.json", 'w') as f:
-        json.dump(probe_history, f, indent=2)
+    split_half_trainer.save(probe_dir / "split_half_probes.pt")
+    mlp_trainer.save(probe_dir / "mlp_4class.pt")
 
-    logger.info(f"Saved {2 + len(combinations) + 1 + 6 + 6} vectors to {vectors_dir}")
-    logger.info(f"Saved probe model and history to {probe_dir}")
+    # Save training histories
+    with open(probe_dir / "dog_probe_history.json", 'w') as f:
+        json.dump(dog_history, f, indent=2)
+    with open(probe_dir / "bridge_probe_history.json", 'w') as f:
+        json.dump(bridge_history, f, indent=2)
+    with open(probe_dir / "mlp_history.json", 'w') as f:
+        json.dump(mlp_history, f, indent=2)
+
+    logger.info(f"Saved {2 + len(combinations) + 1 + 2} vectors to {vectors_dir}")
+    logger.info(f"Saved probe models and histories to {probe_dir}")
 
     # Test multiple scales for ALL combination methods
     logger.info("\n" + "-" * 60)
@@ -449,18 +435,8 @@ def run_for_model(model_key: str, output_base_dir: Path):
         ("Diff", combinations["diff"]),
         ("AbsDiff", combinations["abs_diff"]),
         ("Traditional", traditional_diff),
-        ("ProbeDog", probe_dog),
-        ("ProbeBridge", probe_bridge),
-        ("ProbeBoth", probe_both),
-        ("ProbeDogVsNeither", probe_dog_vs_neither),
-        ("ProbeBridgeVsNeither", probe_bridge_vs_neither),
-        ("ProbeBothVsNeither", probe_both_vs_neither),
-        ("BottleneckDog", bottleneck_dog),
-        ("BottleneckBridge", bottleneck_bridge),
-        ("BottleneckBoth", bottleneck_both),
-        ("BottleneckDogVsNeither", bottleneck_dog_vs_neither),
-        ("BottleneckBridgeVsNeither", bottleneck_bridge_vs_neither),
-        ("BottleneckBothVsNeither", bottleneck_both_vs_neither),
+        ("SplitHalfConcat", split_half_concat),
+        ("SplitHalfMLPWeighted", split_half_mlp_weighted),
     ]
 
     logger.info(f"Testing {len(all_vectors)} vectors at {len(test_scales)} scales each")
